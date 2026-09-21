@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Badge from "@/components/Badge";
-import { formatPrice, properties } from "@/lib/properties";
+import { commercialStatusLabels, formatPropertyPrice, properties, type CommercialStatus } from "@/lib/properties";
 
 export const metadata: Metadata = {
   title: "Admin | NA Business Africa",
@@ -9,15 +9,19 @@ export const metadata: Metadata = {
 
 const stats = [
   { label: "Biens actifs", value: properties.length },
-  { label: "Off-market", value: properties.filter((p) => p.status === "Off-market").length },
-  { label: "Disponibles", value: properties.filter((p) => p.status === "Disponible").length },
-  { label: "Villes couvertes", value: new Set(properties.map((p) => p.city)).size },
+  { label: "Off-market", value: properties.filter((p) => p.commercialStatus === "off-market").length },
+  { label: "Disponibles", value: properties.filter((p) => p.commercialStatus === "disponible").length },
+  { label: "Villes couvertes", value: new Set(properties.map((p) => p.location.city)).size },
 ];
 
-const statusTone: Record<string, "gold" | "anthracite" | "outline"> = {
-  Disponible: "anthracite",
-  Réservé: "outline",
-  "Off-market": "gold",
+const statusTone: Record<CommercialStatus, "gold" | "anthracite" | "outline"> = {
+  disponible: "anthracite",
+  reserve: "outline",
+  "sous-compromis": "outline",
+  vendu: "outline",
+  loue: "outline",
+  retire: "outline",
+  "off-market": "gold",
 };
 
 export default function AdminPage() {
@@ -70,13 +74,13 @@ export default function AdminPage() {
                 key={property.id}
                 className={index % 2 === 0 ? "bg-white" : "bg-anthracite-50"}
               >
-                <td className="px-4 py-3 font-medium text-anthracite-900">{property.title}</td>
-                <td className="px-4 py-3 text-anthracite-600">{property.city}</td>
-                <td className="px-4 py-3 text-anthracite-600">
-                  {formatPrice(property.price, property.currency)}
-                </td>
+                <td className="px-4 py-3 font-medium text-anthracite-900">{property.title.fr}</td>
+                <td className="px-4 py-3 text-anthracite-600">{property.location.city}</td>
+                <td className="px-4 py-3 text-anthracite-600">{formatPropertyPrice(property)}</td>
                 <td className="px-4 py-3">
-                  <Badge tone={statusTone[property.status] ?? "outline"}>{property.status}</Badge>
+                  <Badge tone={statusTone[property.commercialStatus] ?? "outline"}>
+                    {commercialStatusLabels[property.commercialStatus]}
+                  </Badge>
                 </td>
                 <td className="px-4 py-3 text-right">
                   <span className="cursor-not-allowed text-xs font-semibold uppercase tracking-wider text-anthracite-300">

@@ -29,7 +29,7 @@ const steps = [
 ];
 
 export default function AcheterPage() {
-  const selection = properties.filter((property) => property.status !== "Off-market").slice(0, 3);
+  const selection = properties.filter((property) => property.commercialStatus !== "off-market").slice(0, 3);
 
   return (
     <div className="flex flex-col">

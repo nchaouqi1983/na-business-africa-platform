@@ -3,48 +3,55 @@
 import { useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import PropertyCard from "@/components/PropertyCard";
-import SearchBar, { type SearchFilters } from "@/components/SearchBar";
-import { getCities, properties, propertyTypes } from "@/lib/properties";
+import {
+  defaultFilterState,
+  filterAndSortProperties,
+  propertyTypeLabels,
+  properties,
+  type PropertyFilterState,
+  type PropertyType,
+} from "@/lib/properties";
+import FilterPanel from "./FilterPanel";
+
+function buildInitialState(searchParams: URLSearchParams): PropertyFilterState {
+  const state: PropertyFilterState = { ...defaultFilterState };
+
+  const ville = searchParams.get("ville");
+  if (ville) state.city = ville;
+
+  const typeLabel = searchParams.get("type");
+  if (typeLabel) {
+    const entry = (Object.entries(propertyTypeLabels) as [PropertyType, string][]).find(
+      ([, label]) => label === typeLabel
+    );
+    if (entry) state.type = entry[0];
+  }
+
+  const budget = searchParams.get("budget");
+  if (budget) {
+    const [min, max] = budget.split("-");
+    if (min) state.budgetMin = min;
+    if (max) state.budgetMax = max;
+  }
+
+  return state;
+}
 
 export default function ExplorerResults() {
   const searchParams = useSearchParams();
-  const cities = getCities();
+  const [filters, setFilters] = useState<PropertyFilterState>(() => buildInitialState(searchParams));
 
-  const [filters, setFilters] = useState<SearchFilters>({
-    city: searchParams.get("ville") ?? "",
-    type: searchParams.get("type") ?? "",
-    budget: searchParams.get("budget") ?? "",
-  });
-
-  const filtered = useMemo(() => {
-    const [minRaw, maxRaw] = filters.budget.split("-");
-    const min = minRaw ? Number(minRaw) : undefined;
-    const max = maxRaw ? Number(maxRaw) : undefined;
-
-    return properties.filter((property) => {
-      if (filters.city && property.city !== filters.city) return false;
-      if (filters.type && property.type !== filters.type) return false;
-      if (min !== undefined && property.price < min) return false;
-      if (max !== undefined && property.price > max) return false;
-      return true;
-    });
-  }, [filters]);
+  const filtered = useMemo(() => filterAndSortProperties(properties, filters), [filters]);
 
   return (
     <div className="flex flex-col gap-10">
-      <SearchBar
-        cities={cities.map((city) => city.name)}
-        types={propertyTypes}
-        initialFilters={filters}
-        onSearch={setFilters}
+      <FilterPanel
+        properties={properties}
+        state={filters}
+        onChange={setFilters}
+        onReset={() => setFilters(defaultFilterState)}
+        resultCount={filtered.length}
       />
-
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-anthracite-500">
-          {filtered.length} bien{filtered.length > 1 ? "s" : ""} correspondant
-          {filtered.length > 1 ? "s" : ""}
-        </p>
-      </div>
 
       {filtered.length > 0 ? (
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -58,7 +65,7 @@ export default function ExplorerResults() {
             Aucun bien ne correspond à cette recherche
           </p>
           <p className="mt-2 text-sm text-anthracite-500">
-            Essayez d&apos;élargir vos critères de ville, type ou budget.
+            Essayez d&apos;élargir vos critères ou de réinitialiser les filtres.
           </p>
         </div>
       )}

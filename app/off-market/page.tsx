@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 };
 
 export default function OffMarketPage() {
-  const offMarket = properties.filter((property) => property.status === "Off-market");
+  const offMarket = properties.filter((property) => property.commercialStatus === "off-market");
 
   return (
     <div className="flex flex-col">
