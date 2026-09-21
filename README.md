@@ -20,6 +20,32 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Administration locale (`/admin`)
+
+The `/admin` back office needs a local PostgreSQL database. First-time setup:
+
+```bash
+cp .env.example .env
+# fill in SESSION_SECRET (openssl rand -base64 32) and a dev ADMIN_EMAIL / ADMIN_PASSWORD
+
+pnpm db:up       # start PostgreSQL (Docker)
+pnpm db:migrate  # apply Prisma migrations
+pnpm db:seed     # create the dev admin account from ADMIN_EMAIL / ADMIN_PASSWORD
+pnpm dev         # start the site, then sign in at /connexion
+```
+
+Day-to-day commands:
+
+| Command | What it does |
+| --- | --- |
+| `pnpm db:up` | Start the local PostgreSQL container (`docker-compose.dev.yml`) |
+| `pnpm db:down` | Stop it |
+| `pnpm db:migrate` | Apply Prisma migrations (`prisma migrate dev`) |
+| `pnpm db:seed` | (Re)create the dev admin account from `ADMIN_EMAIL` / `ADMIN_PASSWORD` |
+| `pnpm dev` | Start the Next.js site |
+
+PostgreSQL is only exposed on `127.0.0.1:5433` (not the default `5432`) to avoid clashing with other local projects.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

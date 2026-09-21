@@ -1,0 +1,29 @@
+# Local development infrastructure for NA Business Africa.
+# Start:  pnpm db:up
+# Stop:   pnpm db:down
+name: na-business-africa
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: na-business-africa-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-na_business_africa}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-na_business_africa}
+      POSTGRES_DB: ${POSTGRES_DB:-na_business_africa}
+    ports:
+      # Bound to loopback only, on a non-default port, to avoid clashing with
+      # PostgreSQL instances used by other local projects.
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - na_business_africa_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-na_business_africa} -d ${POSTGRES_DB:-na_business_africa}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  na_business_africa_postgres_data:
+    name: na_business_africa_postgres_data
