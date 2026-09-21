@@ -37,3 +37,41 @@ body {
   background: var(--background);
   color: var(--foreground);
 }
+
+::selection {
+  background: var(--color-gold-500);
+  color: var(--color-anthracite-950);
+}
+
+@keyframes scroll-cue {
+  0% {
+    opacity: 0;
+    transform: scaleY(0);
+    transform-origin: top;
+  }
+  30% {
+    opacity: 1;
+    transform: scaleY(1);
+    transform-origin: top;
+  }
+  70% {
+    opacity: 1;
+    transform: scaleY(1);
+    transform-origin: bottom;
+  }
+  100% {
+    opacity: 0;
+    transform: scaleY(0);
+    transform-origin: bottom;
+  }
+}
+
+.animate-scroll-cue {
+  animation: scroll-cue 2s infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-scroll-cue {
+    animation: none;
+  }
+}

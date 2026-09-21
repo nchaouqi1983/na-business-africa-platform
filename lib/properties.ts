@@ -780,6 +780,23 @@ export function getCities() {
   }));
 }
 
+/** Courtes accroches éditoriales par ville — utilisées par la page /villes et la page d'accueil. */
+export const cityTaglines: Record<string, string> = {
+  Casablanca: "Capitale économique, marché immobilier haut de gamme en pleine expansion.",
+  Marrakech: "Riads de caractère et villas d'exception au pied de l'Atlas.",
+  Rabat: "Cadre institutionnel stable et résidences sécurisées.",
+  Tanger: "Vue sur le détroit et dynamisme porté par les grands projets d'infrastructure.",
+  Agadir: "Villas balnéaires et cadre de vie recherché toute l'année.",
+  Essaouira: "Charme authentique et fort potentiel locatif touristique.",
+};
+
+/** Sélection des biens à la une, triés par priorité d'affichage éditoriale. */
+export function getFeaturedProperties(count: number): Property[] {
+  return [...properties]
+    .sort((a, b) => (b.seo.displayPriority ?? 0) - (a.seo.displayPriority ?? 0))
+    .slice(0, count);
+}
+
 /** Libellés de types de biens — utilisés par les sélecteurs de recherche simples. */
 export const propertyTypes: string[] = Array.from(new Set(properties.map((property) => property.type))).map(
   (type) => propertyTypeLabels[type]
