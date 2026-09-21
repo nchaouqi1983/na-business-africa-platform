@@ -26,11 +26,15 @@ import type {
 import type { PropertyDetailsInput } from "@/lib/admin/property-details-schema";
 import type { Visibility as DbVisibility } from "@/lib/generated/prisma/enums";
 import type { PropertyMediaDto } from "@/lib/admin/property-media-dto";
+import type { PropertyDocumentDto } from "@/lib/admin/property-document-dto";
+import type { PropertyExternalLinkDto } from "@/lib/admin/property-external-link-dto";
 import { Field, CheckboxField, inputClass } from "./FormField";
 import PropertyLocationMap from "./PropertyLocationMap";
 import TagPicker, { type TagPickerOption } from "./TagPicker";
 import PropertyDetailsFields from "./PropertyDetailsFields";
 import PropertyMediaManager from "./PropertyMediaManager";
+import PropertyDocumentManager from "./PropertyDocumentManager";
+import PropertyExternalLinkManager from "./PropertyExternalLinkManager";
 
 export type PropertyDossierDefaults = {
   titleFr?: string;
@@ -101,6 +105,10 @@ type PropertyDossierFormProps = {
   propertyId?: string;
   initialMedia?: PropertyMediaDto[];
   canUploadMedia?: boolean;
+  initialDocuments?: PropertyDocumentDto[];
+  initialLinks?: PropertyExternalLinkDto[];
+  canManageDocuments?: boolean;
+  canManageRestrictedDocuments?: boolean;
 };
 
 type SectionKey = "identite" | "localisation" | "prix" | "surfaces" | "caracteristiques" | "tags" | "medias";
@@ -116,6 +124,10 @@ export default function PropertyDossierForm({
   propertyId,
   initialMedia,
   canUploadMedia,
+  initialDocuments,
+  initialLinks,
+  canManageDocuments,
+  canManageRestrictedDocuments,
 }: PropertyDossierFormProps) {
   const [state, formAction, pending] = useActionState<PropertyFormState, FormData>(action, undefined);
 
@@ -169,9 +181,14 @@ export default function PropertyDossierForm({
           complete: Boolean(defaultValues?.details && Object.keys(defaultValues.details).length > 1),
         },
         { key: "tags" as const, label: "Tags & équipements", complete: (defaultValues?.tagSlugs?.length ?? 0) > 0 },
-        { key: "medias" as const, label: "Médias", complete: (initialMedia?.length ?? 0) > 0 },
+        {
+          key: "medias" as const,
+          label: "Médias",
+          complete:
+            (initialMedia?.length ?? 0) > 0 || (initialDocuments?.length ?? 0) > 0 || (initialLinks?.length ?? 0) > 0,
+        },
       ] satisfies { key: SectionKey; label: string; complete: boolean }[],
-    [defaultValues, initialMedia]
+    [defaultValues, initialMedia, initialDocuments, initialLinks]
   );
 
   return (
@@ -635,18 +652,41 @@ export default function PropertyDossierForm({
       </section>
 
       {/* 7. Médias */}
-      <section hidden={activeSection !== "medias"} className="flex flex-col gap-3">
+      <section hidden={activeSection !== "medias"} className="flex flex-col gap-8">
         {propertyId ? (
-          <PropertyMediaManager propertyId={propertyId} initialMedia={initialMedia ?? []} canUpload={Boolean(canUploadMedia)} />
+          <>
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold uppercase tracking-wider text-anthracite-500">Images</h3>
+                <span className="text-xs text-anthracite-500">{(initialMedia ?? []).length} photo(s)</span>
+              </div>
+              <PropertyMediaManager propertyId={propertyId} initialMedia={initialMedia ?? []} canUpload={Boolean(canUploadMedia)} />
+            </div>
+
+            <div className="border-t border-anthracite-100 pt-6">
+              <PropertyDocumentManager
+                propertyId={propertyId}
+                initialDocuments={initialDocuments ?? []}
+                canManage={Boolean(canManageDocuments)}
+                canManageRestricted={Boolean(canManageRestrictedDocuments)}
+                offMarket={isOffMarketOrPrivate}
+              />
+            </div>
+
+            <div className="border-t border-anthracite-100 pt-6">
+              <PropertyExternalLinkManager
+                propertyId={propertyId}
+                initialLinks={initialLinks ?? []}
+                canManage={Boolean(canManageDocuments)}
+                offMarket={isOffMarketOrPrivate}
+              />
+            </div>
+          </>
         ) : (
           <div className="rounded-2xl border border-dashed border-anthracite-200 bg-anthracite-50 p-8 text-center text-sm text-anthracite-500">
-            Enregistrez d&apos;abord ce brouillon pour pouvoir ajouter des photos.
+            Enregistrez d&apos;abord ce brouillon pour pouvoir ajouter des photos, documents ou liens.
           </div>
         )}
-        <p className="text-xs text-anthracite-400">
-          PDF, vidéo et visite virtuelle arrivent dans une prochaine étape — seules les photos sont prises en charge
-          ici.
-        </p>
       </section>
 
       <div className="flex items-center gap-3 border-t border-anthracite-100 pt-6">

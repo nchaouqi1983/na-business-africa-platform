@@ -55,3 +55,14 @@ export function canViewPrivateData(role: Role): boolean {
 export function canManageTags(role: Role): boolean {
   return role === Role.SUPER_ADMIN || role === Role.ADMIN;
 }
+
+/**
+ * SUPER_ADMIN/ADMIN only — same roles as canViewPrivateData, kept as its own
+ * named helper because it gates a different model (PropertyDocument rows of
+ * type DOCUMENT_JURIDIQUE/MANDAT, not PropertyPrivate). An AGENT/EDITOR must
+ * never see, download, or receive in an API response a mandat or a legal
+ * document, even for a bien they can otherwise edit.
+ */
+export function canViewRestrictedDocuments(role: Role): boolean {
+  return role === Role.SUPER_ADMIN || role === Role.ADMIN;
+}

@@ -34,6 +34,7 @@ model User {
   assignedProperties Property[] @relation("PropertyAssignedTo")
   updatedProperties  Property[] @relation("PropertyUpdatedBy")
   uploadedMedia      PropertyMedia[] @relation("PropertyMediaUploadedBy")
+  uploadedDocuments  PropertyDocument[] @relation("PropertyDocumentUploadedBy")
 }
 
 model Session {
@@ -255,9 +256,11 @@ model Property {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tags    PropertyTag[]
-  private PropertyPrivate?
-  media   PropertyMedia[]
+  tags          PropertyTag[]
+  private       PropertyPrivate?
+  media         PropertyMedia[]
+  documents     PropertyDocument[]
+  externalLinks PropertyExternalLink[]
 
   @@index([city])
   @@index([transaction])
@@ -361,5 +364,93 @@ model PropertyMedia {
   updatedAt DateTime @updatedAt
 
   @@unique([propertyId, checksum])
+  @@index([propertyId, sortOrder])
+}
+
+// ---------------------------------------------------------------------------
+// Property documents & external links (phase 6D)
+//
+// Documents: PDF-only master files, local disk, same layout philosophy as
+// PropertyMedia — never under public/, never served except through the
+// authenticated streaming route at app/api/admin/documents/[documentId]/route.ts.
+// Kept in their own storage/properties/{propertyId}/documents/{documentId}/
+// subtree so a documentId can never collide with a mediaId's folder.
+// DOCUMENT_JURIDIQUE and MANDAT are restricted to ADMIN/SUPER_ADMIN at the
+// query/action layer (see canViewPrivateData in lib/property-permissions.ts) —
+// there is no schema-level enforcement of that, it must be re-checked by
+// every caller.
+//
+// External links: URL-only rows, domain-allowlisted per type at the action
+// layer (lib/admin/property-external-link-schema.ts) — nothing is ever
+// fetched from YouTube/Vimeo/Instagram/TikTok, the row just stores the URL.
+//
+// `visibility` on both models is a future "publish to the public site" flag
+// with no public-site wiring yet — every write defaults it to INTERNE, and
+// the action layer refuses PUBLIABLE outright while the bien's own
+// visibility is OFF_MARKET or PRIVE.
+// ---------------------------------------------------------------------------
+
+enum DocumentType {
+  BROCHURE
+  PLAN
+  DOCUMENT_JURIDIQUE
+  MANDAT
+  AUTRE
+}
+
+enum AssetVisibility {
+  INTERNE
+  PUBLIABLE
+}
+
+model PropertyDocument {
+  id         String   @id @default(cuid())
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  type  DocumentType
+  title String
+
+  originalFilename String
+  mimeType         String
+  sizeBytes        Int
+  storageKey       String
+
+  visibility AssetVisibility @default(INTERNE)
+  sortOrder  Int             @default(0)
+
+  uploadedById String
+  uploadedBy   User   @relation("PropertyDocumentUploadedBy", fields: [uploadedById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([propertyId, sortOrder])
+}
+
+enum ExternalLinkType {
+  VIDEO_YOUTUBE
+  VIDEO_VIMEO
+  VISITE_VIRTUELLE
+  INSTAGRAM
+  TIKTOK
+  AUTRE
+}
+
+model PropertyExternalLink {
+  id         String   @id @default(cuid())
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  type  ExternalLinkType
+  url   String
+  title String?
+
+  visibility AssetVisibility @default(INTERNE)
+  sortOrder  Int             @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([propertyId, sortOrder])
 }
