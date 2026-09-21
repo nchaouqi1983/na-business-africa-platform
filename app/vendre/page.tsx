@@ -1,86 +1,78 @@
 import type { Metadata } from "next";
-import Button from "@/components/Button";
+import Reveal from "@/components/Reveal";
 import SectionTitle from "@/components/SectionTitle";
+import VendreHero from "./_components/VendreHero";
+import VendreWhyUs from "./_components/VendreWhyUs";
+import VendreMethod from "./_components/VendreMethod";
+import VendreEstimationForm from "./_components/VendreEstimationForm";
+import VendreOffMarketBlock from "./_components/VendreOffMarketBlock";
+import VendreFaq from "./_components/VendreFaq";
 
 export const metadata: Metadata = {
-  title: "Vendre | NA Business Africa",
-  description: "Vendez votre bien immobilier premium avec NA Business Africa et une clientèle qualifiée.",
+  title: "Vendre un bien immobilier au Maroc | NA Business Africa",
+  description:
+    "Vendez votre bien immobilier à Marrakech, Casablanca ou ailleurs au Maroc avec l'accompagnement personnel de Niama : estimation, présentation premium, sélection des acquéreurs et vente confidentielle possible.",
 };
-
-const benefits = [
-  {
-    title: "Estimation précise",
-    description: "Analyse fine du marché local pour positionner votre bien au juste prix.",
-  },
-  {
-    title: "Clientèle qualifiée",
-    description: "Diaspora, investisseurs et acquéreurs internationaux déjà identifiés.",
-  },
-  {
-    title: "Discrétion garantie",
-    description: "Option de commercialisation off-market pour préserver votre confidentialité.",
-  },
-  {
-    title: "Suivi de bout en bout",
-    description: "Un interlocuteur unique, de la mise en marché à la signature.",
-  },
-];
-
-const steps = [
-  { title: "Prise de contact", description: "Échange avec un conseiller pour qualifier votre bien." },
-  { title: "Estimation", description: "Analyse comparative et proposition de stratégie de vente." },
-  { title: "Mise en marché", description: "Diffusion ciblée, y compris en off-market si souhaité." },
-  { title: "Négociation & vente", description: "Sélection des offres et accompagnement jusqu'à la signature." },
-];
 
 export default function VendrePage() {
   return (
     <div className="flex flex-col">
-      <section className="bg-anthracite-950 py-20">
-        <div className="mx-auto flex max-w-7xl flex-col gap-6 px-6 lg:px-8">
+      <VendreHero />
+
+      {/* POURQUOI CONFIER SON BIEN */}
+      <section className="mx-auto max-w-7xl px-6 py-20 lg:px-8 lg:py-28">
+        <Reveal>
           <SectionTitle
-            eyebrow="Vendre"
-            title="Valorisez votre bien auprès des bons acquéreurs"
-            description="NA Business Africa positionne votre bien auprès d'une clientèle premium, locale et internationale."
-            tone="dark"
+            eyebrow="Pourquoi Niama"
+            title="Pourquoi confier la vente de votre bien à Niama"
+            description="Un accompagnement exigeant, pensé pour valoriser votre bien et protéger vos intérêts jusqu'à la signature."
           />
-          <div>
-            <Button href="/contact" size="lg">
-              Demander une estimation
-            </Button>
+        </Reveal>
+        <div className="mt-10">
+          <VendreWhyUs />
+        </div>
+      </section>
+
+      {/* METHODE */}
+      <section className="border-y border-anthracite-100 bg-anthracite-50 py-20 lg:py-28">
+        <div className="mx-auto max-w-4xl px-6 lg:px-8">
+          <Reveal>
+            <SectionTitle
+              eyebrow="La méthode"
+              title="Notre méthode de commercialisation"
+              description="Cinq étapes claires, de la première rencontre à la finalisation de la vente."
+            />
+          </Reveal>
+          <div className="mt-12">
+            <VendreMethod />
           </div>
         </div>
       </section>
 
-      <section className="mx-auto flex max-w-7xl flex-col gap-10 px-6 py-20 lg:px-8">
-        <SectionTitle eyebrow="Pourquoi nous confier votre bien" title="Une commercialisation exigeante et efficace" />
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {benefits.map((benefit) => (
-            <div key={benefit.title} className="flex flex-col gap-3 rounded-2xl border border-anthracite-100 p-6">
-              <h3 className="font-display text-base font-semibold text-anthracite-950">
-                {benefit.title}
-              </h3>
-              <p className="text-sm leading-relaxed text-anthracite-500">{benefit.description}</p>
-            </div>
-          ))}
+      {/* FORMULAIRE */}
+      <section className="py-20 lg:py-28">
+        <div className="mx-auto max-w-6xl px-6 lg:px-8">
+          <Reveal>
+            <VendreEstimationForm />
+          </Reveal>
         </div>
       </section>
 
-      <section className="bg-anthracite-50 py-20">
-        <div className="mx-auto flex max-w-7xl flex-col gap-10 px-6 lg:px-8">
-          <SectionTitle eyebrow="Processus" title="Vendre en 4 étapes" />
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {steps.map((step, index) => (
-              <div key={step.title} className="flex flex-col gap-3 rounded-2xl bg-white p-6 shadow-sm">
-                <span className="font-display text-2xl font-semibold text-gold-600">
-                  0{index + 1}
-                </span>
-                <h3 className="font-display text-base font-semibold text-anthracite-950">
-                  {step.title}
-                </h3>
-                <p className="text-sm leading-relaxed text-anthracite-500">{step.description}</p>
-              </div>
-            ))}
+      {/* OFF MARKET */}
+      <section className="pb-20 lg:pb-28">
+        <div className="mx-auto max-w-7xl px-6 lg:px-8">
+          <VendreOffMarketBlock />
+        </div>
+      </section>
+
+      {/* FAQ */}
+      <section className="border-t border-anthracite-100 bg-anthracite-50 py-20 lg:py-28">
+        <div className="mx-auto max-w-3xl px-6 lg:px-8">
+          <Reveal>
+            <SectionTitle eyebrow="Questions fréquentes" title="Ce que les propriétaires nous demandent" align="left" />
+          </Reveal>
+          <div className="mt-10">
+            <VendreFaq />
           </div>
         </div>
       </section>
