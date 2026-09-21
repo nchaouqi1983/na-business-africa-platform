@@ -9,8 +9,10 @@ import {
   filterAndSortProperties,
   propertyTypeLabels,
   properties,
+  transactionValues,
   type PropertyFilterState,
   type PropertyType,
+  type TransactionType,
 } from "@/lib/properties";
 import SearchEssentials from "./SearchEssentials";
 import AdvancedFilters from "./AdvancedFilters";
@@ -21,6 +23,11 @@ function buildInitialState(searchParams: URLSearchParams): PropertyFilterState {
 
   const ville = searchParams.get("ville");
   if (ville) state.city = ville;
+
+  const transaction = searchParams.get("transaction");
+  if (transaction && (transactionValues as readonly string[]).includes(transaction)) {
+    state.transaction = transaction as TransactionType;
+  }
 
   const typeLabel = searchParams.get("type");
   if (typeLabel) {
