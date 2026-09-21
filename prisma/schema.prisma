@@ -29,6 +29,10 @@ model User {
 
   sessions  Session[]
   auditLogs AuditLog[]
+
+  createdProperties  Property[] @relation("PropertyCreatedBy")
+  assignedProperties Property[] @relation("PropertyAssignedTo")
+  updatedProperties  Property[] @relation("PropertyUpdatedBy")
 }
 
 model Session {
@@ -53,4 +57,260 @@ model AuditLog {
 
   @@index([userId])
   @@index([entity, entityId])
+}
+
+// ---------------------------------------------------------------------------
+// Property registry (phase 6B1)
+//
+// Enum values are mapped (`@map`) to the exact slugs already used by the
+// public-facing catalogue contract in lib/property-schema.ts, so the two
+// vocabularies never drift apart even though Prisma enum identifiers must be
+// SCREAMING_SNAKE_CASE. See lib/admin/property-enum-maps.ts for the
+// runtime conversion helpers. PublicationStatus and Visibility are new
+// back-office concepts with no public-schema equivalent yet, so they use
+// plain identifiers.
+// ---------------------------------------------------------------------------
+
+enum PropertyTransaction {
+  VENTE
+  LOCATION
+  LOCATION_SAISONNIERE @map("location-saisonniere")
+  PROGRAMME_NEUF       @map("programme-neuf")
+}
+
+enum PropertyType {
+  VILLA
+  MAISON
+  RIAD
+  APPARTEMENT
+  DUPLEX
+  PENTHOUSE
+  TERRAIN
+  HOTEL
+  MAISON_HOTES      @map("maison-hotes")
+  RESTAURANT
+  COMMERCE
+  BUREAU
+  DEPOT
+  FONDS_DE_COMMERCE @map("fonds-de-commerce")
+  PROGRAMME_NEUF    @map("programme-neuf")
+}
+
+/**
+ * Statut métier du bien. Sous-ensemble volontaire de commercialStatusValues :
+ * "sous-compromis" et "off-market" ne sont pas repris ici (off-market est
+ * couvert par Visibility.OFF_MARKET).
+ */
+enum PropertyStatus {
+  DISPONIBLE
+  RESERVE    @map("reserve")
+  VENDU
+  LOUE       @map("loue")
+  RETIRE     @map("retire")
+}
+
+enum PublicationStatus {
+  BROUILLON
+  PUBLIE
+  ARCHIVE
+}
+
+enum Visibility {
+  PUBLIC
+  OFF_MARKET
+  PRIVE
+}
+
+enum FurnishedState {
+  MEUBLE
+  SEMI_MEUBLE @map("semi-meuble")
+  NON_MEUBLE  @map("non-meuble")
+}
+
+enum PropertyCondition {
+  NEUF
+  EXCELLENT
+  BON_ETAT     @map("bon-etat")
+  A_RAFRAICHIR @map("a-rafraichir")
+  A_RENOVER    @map("a-renover")
+  A_DEMOLIR    @map("a-demolir")
+}
+
+enum Orientation {
+  NORD
+  SUD
+  EST
+  OUEST
+  NORD_EST   @map("nord-est")
+  NORD_OUEST @map("nord-ouest")
+  SUD_EST    @map("sud-est")
+  SUD_OUEST  @map("sud-ouest")
+}
+
+enum TagCategory {
+  EXTERIEUR     @map("exterieur")
+  CONFORT       @map("confort")
+  SECURITE      @map("securite")
+  LOISIRS       @map("loisirs")
+  TECHNIQUE     @map("technique")
+  JURIDIQUE     @map("juridique")
+  MARKETING
+  VUE           @map("vue")
+  ENVIRONNEMENT @map("environnement")
+  PROXIMITE     @map("proximite")
+}
+
+model Property {
+  id        String @id @default(cuid())
+  reference String @unique
+  slug      String @unique
+
+  titleFr          String
+  shortDescription String?
+  descriptionFr    String?
+
+  transaction     PropertyTransaction
+  propertyType    PropertyType
+  propertySubtype String?
+
+  status            PropertyStatus    @default(DISPONIBLE)
+  publicationStatus PublicationStatus @default(BROUILLON)
+  visibility        Visibility        @default(PUBLIC)
+
+  city           String
+  district       String?
+  addressPublic  String?
+  latitude       Float?
+  longitude      Float?
+  proximityNotes String?
+
+  currency              String   @default("MAD")
+  price                 Decimal? @db.Decimal(14, 2)
+  priceOnRequest        Boolean  @default(false)
+  pricePerSqm           Decimal? @db.Decimal(14, 2)
+  negotiable            Boolean  @default(false)
+  agencyFeePercent      Decimal? @db.Decimal(5, 2)
+  monthlyCharges        Decimal? @db.Decimal(14, 2)
+  securityDeposit       Decimal? @db.Decimal(14, 2)
+  estimatedYieldPercent Decimal? @db.Decimal(5, 2)
+
+  livingArea   Float?
+  builtArea    Float?
+  landArea     Float?
+  terraceArea  Float?
+  balconyArea  Float?
+  basementArea Float?
+
+  bedrooms      Int?
+  suites        Int?
+  bathrooms     Int?
+  salons        Int?
+  kitchens      Int?
+  parkingSpaces Int?
+  floor         Int?
+  totalFloors   Int?
+
+  yearBuilt   Int?
+  furnished   FurnishedState?
+  condition   PropertyCondition?
+  orientation Orientation?
+
+  isFeatured          Boolean @default(false)
+  isGoodDeal          Boolean @default(false)
+  isCoupDeCoeur       Boolean @default(false)
+  isCreditEligible    Boolean @default(false)
+  isMourabahaEligible Boolean @default(false)
+
+  /**
+   * Champs conditionnels très spécifiques par type (villa, riad, terrain,
+   * hôtel, commerce, bureau, dépôt, programme neuf). Ne doit jamais contenir
+   * les champs publics essentiels déjà modélisés ci-dessus. Validé par
+   * lib/admin/property-details-schema.ts (union discriminée par `kind`,
+   * calquée sur PropertyTypeGroup de lib/property-schema.ts).
+   */
+  details Json?
+
+  publishedAt DateTime?
+  archivedAt  DateTime?
+
+  createdById String
+  createdBy   User   @relation("PropertyCreatedBy", fields: [createdById], references: [id])
+
+  /**
+   * Dernier utilisateur ayant enregistré une modification (dossier, tags ou
+   * données privées) — affiché dans l'écran d'édition à côté de updatedAt.
+   */
+  updatedById String?
+  updatedBy   User?   @relation("PropertyUpdatedBy", fields: [updatedById], references: [id])
+
+  /**
+   * Bien attribué à un EDITOR (ou, depuis la 6B2, un AGENT) — seul champ qui
+   * lui donne le droit de le modifier en dehors de ce qu'il a lui-même créé
+   * (aucun accès aux données privées ni à la publication).
+   */
+  assignedToId String?
+  assignedTo   User?   @relation("PropertyAssignedTo", fields: [assignedToId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tags    PropertyTag[]
+  private PropertyPrivate?
+
+  @@index([city])
+  @@index([transaction])
+  @@index([propertyType])
+  @@index([publicationStatus])
+  @@index([visibility])
+  @@index([status])
+}
+
+/**
+ * Compteur atomique pour la référence NHA-YYYY-000001. Une ligne par année ;
+ * l'incrément se fait par un seul UPSERT SQL (voir lib/admin/reference.ts),
+ * jamais par un `count()` des biens existants (non sûr en concurrence).
+ */
+model PropertyReferenceCounter {
+  year Int @id
+  seq  Int @default(0)
+}
+
+model PropertyTag {
+  id       String      @id @default(cuid())
+  slug     String      @unique
+  labelFr  String
+  category TagCategory
+  isActive Boolean     @default(true)
+
+  properties Property[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/**
+ * Physiquement séparée de Property : jamais lue par le site public, jamais
+ * incluse dans une réponse envoyée à un rôle autre que SUPER_ADMIN/ADMIN
+ * (voir lib/property-permissions.ts, canViewPrivateData).
+ */
+model PropertyPrivate {
+  id         String   @id @default(cuid())
+  propertyId String   @unique
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  privateAddress String?
+  ownerName      String?
+  ownerPhone     String?
+  ownerEmail     String?
+
+  mandateReference String?
+  mandateStartDate DateTime?
+  mandateEndDate   DateTime?
+
+  minimumNetPrice Decimal? @db.Decimal(14, 2)
+  internalNotes   String?
+  source          String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

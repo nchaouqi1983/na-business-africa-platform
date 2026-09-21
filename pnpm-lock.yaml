@@ -20,6 +20,9 @@ importers:
       jose:
         specifier: ^6.2.12
         version: 6.2.12
+      mapbox-gl:
+        specifier: ^3.31.0
+        version: 3.31.0
       next:
         specifier: 16.3.5
         version: 16.3.5(@babel/core@7.29.7)(@types/node@20.19.43)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -2167,6 +2170,9 @@ packages:
 
   magicast@0.5.5:
     resolution: {integrity: sha512-UicdXN8zQ3JHlxVq+28afMXPr1z7WNY6+7EJnzTdQWkTAlMLF5fNCCKxJHBQwGaNGR11581EiQmQzx73+MvszA==}
+
+  mapbox-gl@3.31.0:
+    resolution: {integrity: sha512-7i25NyCPW5jnqsqJq3irgBBEoVTJgfZqTJJS446Q3ZuxyAb5Om75UIcxYIo38oz9eDswnBXr0riz+M/C8V7g3Q==}
 
   math-intrinsics@1.1.0:
     resolution: {integrity: sha512-/IXtbwEk5HTPyEwyKX6hGkYXxM9nbj64B+ilVJnC/R6B0pH5G4V3b0pVbL7DBj4tkhBAppbQUlf6F6Xl9LHu1g==}
@@ -4960,6 +4966,8 @@ snapshots:
       '@babel/types': 7.29.8
       source-map-js: 1.2.1
     optional: true
+
+  mapbox-gl@3.31.0: {}
 
   math-intrinsics@1.1.0: {}
 
