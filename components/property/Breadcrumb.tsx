@@ -7,9 +7,12 @@ type BreadcrumbItem = {
 
 type BreadcrumbProps = {
   items: BreadcrumbItem[];
+  tone?: "light" | "dark";
 };
 
-export default function Breadcrumb({ items }: BreadcrumbProps) {
+export default function Breadcrumb({ items, tone = "light" }: BreadcrumbProps) {
+  const isDark = tone === "dark";
+
   return (
     <nav aria-label="Fil d'Ariane" className="overflow-x-auto">
       <ol className="flex items-center gap-2 whitespace-nowrap text-xs text-anthracite-400">
@@ -18,16 +21,16 @@ export default function Breadcrumb({ items }: BreadcrumbProps) {
           return (
             <li key={item.label} className="flex items-center gap-2">
               {index > 0 && (
-                <span aria-hidden="true" className="text-anthracite-300">
+                <span aria-hidden="true" className={isDark ? "text-anthracite-600" : "text-anthracite-300"}>
                   /
                 </span>
               )}
               {item.href && !isLast ? (
-                <Link href={item.href} className="transition-colors hover:text-gold-600">
+                <Link href={item.href} className="transition-colors hover:text-gold-500">
                   {item.label}
                 </Link>
               ) : (
-                <span className={isLast ? "font-medium text-anthracite-600" : undefined}>
+                <span className={isLast ? `font-medium ${isDark ? "text-anthracite-200" : "text-anthracite-600"}` : undefined}>
                   {item.label}
                 </span>
               )}
