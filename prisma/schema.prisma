@@ -33,6 +33,7 @@ model User {
   createdProperties  Property[] @relation("PropertyCreatedBy")
   assignedProperties Property[] @relation("PropertyAssignedTo")
   updatedProperties  Property[] @relation("PropertyUpdatedBy")
+  uploadedMedia      PropertyMedia[] @relation("PropertyMediaUploadedBy")
 }
 
 model Session {
@@ -256,6 +257,7 @@ model Property {
 
   tags    PropertyTag[]
   private PropertyPrivate?
+  media   PropertyMedia[]
 
   @@index([city])
   @@index([transaction])
@@ -313,4 +315,51 @@ model PropertyPrivate {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// Property media (phase 6C)
+//
+// Local-disk storage only for now: masters and generated variants live under
+// storage/properties/{propertyId}/{mediaId}/ (outside public/, git-ignored),
+// never served directly — see lib/media/storage.ts and the admin-only
+// streaming route at app/api/admin/media/[mediaId]/[variant]/route.ts.
+// `storageKey` is the propertyId/mediaId folder key, kept distinct from the
+// filesystem path helper so a future move to Cloudflare R2/Images only has
+// to change lib/media/storage.ts, not this schema or any caller.
+// ---------------------------------------------------------------------------
+
+enum MediaType {
+  IMAGE
+}
+
+model PropertyMedia {
+  id         String    @id @default(cuid())
+  propertyId String
+  property   Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  type       MediaType @default(IMAGE)
+
+  originalFilename String
+  mimeType         String
+  sizeBytes        Int
+  width            Int?
+  height           Int?
+
+  /** sha256 of the original file — used to reject obvious duplicates per bien. */
+  checksum String
+
+  storageKey String
+
+  sortOrder Int     @default(0)
+  isCover   Boolean @default(false)
+  altText   String?
+
+  uploadedById String
+  uploadedBy   User   @relation("PropertyMediaUploadedBy", fields: [uploadedById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([propertyId, checksum])
+  @@index([propertyId, sortOrder])
 }

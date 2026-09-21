@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { requireAdminUser } from "@/lib/auth/dal";
 import { getPropertyById, getPropertyPrivateById, listAssignableUsers } from "@/lib/admin/property-queries";
+import { listPropertyMedia } from "@/lib/admin/property-media-queries";
+import { toPropertyMediaDto } from "@/lib/admin/property-media-dto";
 import { listActiveTags } from "@/lib/admin/property-tags";
 import {
   canEditProperty,
@@ -66,10 +68,11 @@ export default async function PropertyDetailPage({
   const canSeePrivate = canViewPrivateData(user.role);
   const canAssign = canManageTags(user.role);
 
-  const [allTags, assignableUsers, privateData] = await Promise.all([
+  const [allTags, assignableUsers, privateData, media] = await Promise.all([
     listActiveTags(),
     canAssign ? listAssignableUsers() : Promise.resolve([]),
     canSeePrivate ? getPropertyPrivateById(id) : Promise.resolve(null),
+    canEdit ? listPropertyMedia(id) : Promise.resolve([]),
   ]);
 
   const boundUpdate = updatePropertyDossier.bind(null, property.id);
@@ -164,6 +167,9 @@ export default async function PropertyDetailPage({
               canCreateTag={canAssign}
               canAssign={canAssign}
               assignableUsers={assignableUsers}
+              propertyId={property.id}
+              initialMedia={media.map(toPropertyMediaDto)}
+              canUploadMedia={canEdit}
               defaultValues={{
                 titleFr: property.titleFr,
                 shortDescription: property.shortDescription ?? undefined,

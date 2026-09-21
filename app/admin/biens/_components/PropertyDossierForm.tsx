@@ -25,10 +25,12 @@ import type {
 } from "@/lib/property-schema";
 import type { PropertyDetailsInput } from "@/lib/admin/property-details-schema";
 import type { Visibility as DbVisibility } from "@/lib/generated/prisma/enums";
+import type { PropertyMediaDto } from "@/lib/admin/property-media-dto";
 import { Field, CheckboxField, inputClass } from "./FormField";
 import PropertyLocationMap from "./PropertyLocationMap";
 import TagPicker, { type TagPickerOption } from "./TagPicker";
 import PropertyDetailsFields from "./PropertyDetailsFields";
+import PropertyMediaManager from "./PropertyMediaManager";
 
 export type PropertyDossierDefaults = {
   titleFr?: string;
@@ -95,6 +97,10 @@ type PropertyDossierFormProps = {
   canCreateTag: boolean;
   canAssign: boolean;
   assignableUsers: AssignableUser[];
+  /** Absent on the "nouveau bien" creation form — the bien has no id yet. */
+  propertyId?: string;
+  initialMedia?: PropertyMediaDto[];
+  canUploadMedia?: boolean;
 };
 
 type SectionKey = "identite" | "localisation" | "prix" | "surfaces" | "caracteristiques" | "tags" | "medias";
@@ -107,6 +113,9 @@ export default function PropertyDossierForm({
   canCreateTag,
   canAssign,
   assignableUsers,
+  propertyId,
+  initialMedia,
+  canUploadMedia,
 }: PropertyDossierFormProps) {
   const [state, formAction, pending] = useActionState<PropertyFormState, FormData>(action, undefined);
 
@@ -160,9 +169,9 @@ export default function PropertyDossierForm({
           complete: Boolean(defaultValues?.details && Object.keys(defaultValues.details).length > 1),
         },
         { key: "tags" as const, label: "Tags & équipements", complete: (defaultValues?.tagSlugs?.length ?? 0) > 0 },
-        { key: "medias" as const, label: "Médias", complete: false },
+        { key: "medias" as const, label: "Médias", complete: (initialMedia?.length ?? 0) > 0 },
       ] satisfies { key: SectionKey; label: string; complete: boolean }[],
-    [defaultValues]
+    [defaultValues, initialMedia]
   );
 
   return (
@@ -625,12 +634,19 @@ export default function PropertyDossierForm({
         <TagPicker allTags={allTags} selected={selectedTags} onChange={setSelectedTags} canCreateTag={canCreateTag} />
       </section>
 
-      {/* Médias — prochaine étape */}
+      {/* 7. Médias */}
       <section hidden={activeSection !== "medias"} className="flex flex-col gap-3">
-        <div className="rounded-2xl border border-dashed border-anthracite-200 bg-anthracite-50 p-8 text-center text-sm text-anthracite-500">
-          Photos, PDF, vidéo et visite virtuelle arrivent dans une prochaine étape. Aucun upload n&apos;est disponible
-          pour le moment.
-        </div>
+        {propertyId ? (
+          <PropertyMediaManager propertyId={propertyId} initialMedia={initialMedia ?? []} canUpload={Boolean(canUploadMedia)} />
+        ) : (
+          <div className="rounded-2xl border border-dashed border-anthracite-200 bg-anthracite-50 p-8 text-center text-sm text-anthracite-500">
+            Enregistrez d&apos;abord ce brouillon pour pouvoir ajouter des photos.
+          </div>
+        )}
+        <p className="text-xs text-anthracite-400">
+          PDF, vidéo et visite virtuelle arrivent dans une prochaine étape — seules les photos sont prises en charge
+          ici.
+        </p>
       </section>
 
       <div className="flex items-center gap-3 border-t border-anthracite-100 pt-6">

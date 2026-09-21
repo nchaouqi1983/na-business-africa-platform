@@ -43,3 +43,6 @@ next-env.d.ts
 references/
 *:Zone.Identifier
 /lib/generated/prisma
+
+# local media storage (phase 6C) — masters and generated variants never live in git
+/storage/
