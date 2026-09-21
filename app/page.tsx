@@ -1,69 +1,173 @@
-import Image from "next/image";
+import Link from "next/link";
+import Button from "@/components/Button";
+import SectionTitle from "@/components/SectionTitle";
+import PropertyCard from "@/components/PropertyCard";
+import SearchBar from "@/components/SearchBar";
+import { getCities, properties, propertyTypes } from "@/lib/properties";
+
+const stats = [
+  { value: "120+", label: "Biens d'exception" },
+  { value: "6", label: "Villes couvertes" },
+  { value: "15 ans", label: "D'expertise locale" },
+  { value: "100%", label: "Accompagnement dédié" },
+];
+
+const services = [
+  {
+    title: "Acheter",
+    description: "Trouvez le bien qui correspond à vos exigences, accompagné à chaque étape.",
+    href: "/acheter",
+  },
+  {
+    title: "Vendre",
+    description: "Valorisez votre bien auprès d'une clientèle qualifiée et internationale.",
+    href: "/vendre",
+  },
+  {
+    title: "Investir",
+    description: "Construisez un portefeuille immobilier rentable au Maroc et en Afrique.",
+    href: "/investir",
+  },
+  {
+    title: "Off-market",
+    description: "Accédez à une sélection confidentielle de biens rares, hors marché.",
+    href: "/off-market",
+  },
+];
 
 export default function Home() {
+  const featured = properties.slice(0, 3);
+  const cities = getCities();
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <div className="flex flex-col">
+      <section className="relative overflow-hidden bg-anthracite-950">
+        <div className="absolute inset-0 bg-gradient-to-br from-anthracite-900 via-anthracite-950 to-anthracite-950" />
+        <div className="relative mx-auto flex max-w-7xl flex-col gap-10 px-6 py-24 lg:px-8 lg:py-32">
+          <div className="flex max-w-2xl flex-col gap-6">
+            <span className="text-xs font-semibold uppercase tracking-[0.3em] text-gold-400">
+              Immobilier premium en Afrique
+            </span>
+            <h1 className="font-display text-4xl font-semibold leading-tight text-white sm:text-5xl lg:text-6xl">
+              Des biens d&apos;exception, une expertise sans compromis
+            </h1>
+            <p className="max-w-xl text-base leading-relaxed text-anthracite-200 sm:text-lg">
+              NA Business Africa sélectionne et accompagne l&apos;acquisition, la vente et
+              l&apos;investissement dans les biens immobiliers les plus prestigieux du Maroc.
+            </p>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <Button href="/explorer" size="lg">
+                Explorer les biens
+              </Button>
+              <Button href="/off-market" variant="secondary" size="lg">
+                Accès off-market
+              </Button>
+            </div>
+          </div>
+
+          <SearchBar
+            variant="hero"
+            cities={cities.map((city) => city.name)}
+            types={propertyTypes}
+          />
+
+          <dl className="grid grid-cols-2 gap-6 border-t border-white/10 pt-8 sm:grid-cols-4">
+            {stats.map((stat) => (
+              <div key={stat.label} className="flex flex-col gap-1">
+                <dt className="order-2 text-xs uppercase tracking-wider text-anthracite-300">
+                  {stat.label}
+                </dt>
+                <dd className="order-1 font-display text-3xl font-semibold text-gold-400">
+                  {stat.value}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      </section>
+
+      <section className="mx-auto flex max-w-7xl flex-col gap-10 px-6 py-20 lg:px-8">
+        <div className="flex flex-col items-start justify-between gap-6 sm:flex-row sm:items-end">
+          <SectionTitle
+            eyebrow="Sélection"
+            title="Biens à la une"
+            description="Une sélection de biens représentatifs de notre exigence en matière de qualité et d'emplacement."
+          />
+          <Button href="/explorer" variant="secondary">
+            Voir tous les biens
+          </Button>
+        </div>
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {featured.map((property) => (
+            <PropertyCard key={property.id} property={property} />
+          ))}
+        </div>
+      </section>
+
+      <section className="bg-anthracite-50 py-20">
+        <div className="mx-auto flex max-w-7xl flex-col gap-10 px-6 lg:px-8">
+          <SectionTitle
+            eyebrow="Nos services"
+            title="Un accompagnement complet, à chaque étape"
+            align="center"
+          />
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            {services.map((service) => (
+              <Link
+                key={service.href}
+                href={service.href}
+                className="group flex flex-col gap-3 rounded-2xl border border-anthracite-100 bg-white p-6 transition-shadow hover:shadow-lg"
+              >
+                <h3 className="font-display text-lg font-semibold text-anthracite-950 group-hover:text-gold-600">
+                  {service.title}
+                </h3>
+                <p className="text-sm leading-relaxed text-anthracite-500">
+                  {service.description}
+                </p>
+                <span className="mt-auto text-xs font-semibold uppercase tracking-wider text-gold-600">
+                  Découvrir →
+                </span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="mx-auto flex max-w-7xl flex-col gap-10 px-6 py-20 lg:px-8">
+        <SectionTitle
+          eyebrow="Villes"
+          title="Une présence dans les villes stratégiques du Maroc"
+          description="Casablanca, Marrakech, Rabat, Tanger, Agadir, Essaouira — découvrez nos opportunités ville par ville."
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+        <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-6">
+          {cities.map((city) => (
+            <Link
+              key={city.name}
+              href={`/explorer?ville=${encodeURIComponent(city.name)}`}
+              className="flex flex-col gap-1 rounded-xl border border-anthracite-100 bg-white px-4 py-5 text-center transition-colors hover:border-gold-500"
             >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+              <span className="font-display text-base font-semibold text-anthracite-950">
+                {city.name}
+              </span>
+              <span className="text-xs text-anthracite-500">{city.count} bien(s)</span>
+            </Link>
+          ))}
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+      </section>
+
+      <section className="bg-anthracite-950">
+        <div className="mx-auto flex max-w-7xl flex-col items-center gap-6 px-6 py-20 text-center lg:px-8">
+          <SectionTitle
+            eyebrow="Contact"
+            title="Discutons de votre prochain projet immobilier"
+            tone="dark"
+            align="center"
+          />
+          <Button href="/contact" size="lg">
+            Prendre contact
+          </Button>
         </div>
-      </main>
+      </section>
     </div>
   );
 }
