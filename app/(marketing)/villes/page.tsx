@@ -1,15 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import SectionTitle from "@/components/SectionTitle";
-import { cityTaglines, getCities } from "@/lib/properties";
+import { cityTaglines } from "@/lib/properties";
+import { getPublicCityCounts } from "@/lib/public-catalog/queries";
 
 export const metadata: Metadata = {
   title: "Villes | NA Business Africa",
   description: "Découvrez les villes couvertes par NA Business Africa pour vos projets immobiliers.",
 };
 
-export default function VillesPage() {
-  const cities = getCities();
+export default async function VillesPage() {
+  const cities = await getPublicCityCounts();
 
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-10 px-6 py-16 lg:px-8">

@@ -93,8 +93,8 @@ function buildBuildingFacts(layout: Property["layout"]): Fact[] {
   if (layout.renovationYear !== undefined) {
     facts.push({ label: "Année de rénovation", value: `${layout.renovationYear}` });
   }
-  facts.push({ label: "État", value: conditionLabels[layout.condition] });
-  facts.push({ label: "Disponibilité", value: availabilityLabels[layout.availability] });
+  if (layout.condition) facts.push({ label: "État", value: conditionLabels[layout.condition] });
+  if (layout.availability) facts.push({ label: "Disponibilité", value: availabilityLabels[layout.availability] });
   if (layout.furnished) facts.push({ label: "Ameublement", value: furnishedLabels[layout.furnished] });
 
   return facts;

@@ -415,8 +415,9 @@ export interface PropertyLayout {
   elevator?: boolean;
   yearBuilt?: number;
   renovationYear?: number;
-  condition: PropertyCondition;
-  availability: Availability;
+  /** Optional — the real property registry doesn't always capture these (no `availability` concept at all). */
+  condition?: PropertyCondition;
+  availability?: Availability;
   furnished?: FurnishedState;
 }
 

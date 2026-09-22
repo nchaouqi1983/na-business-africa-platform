@@ -13,6 +13,7 @@ import { MAX_ORIGINAL_FILE_BYTES, MAX_PHOTOS_PER_PROPERTY, type MediaVariant } f
 import { decodeImage, generateVariants, mimeTypeForSniffedFormat, extensionForSniffedFormat, sniffImageFormat } from "@/lib/media/image-processing";
 import { buildStorageKey, deleteMediaFiles, writeMediaFiles } from "@/lib/media/storage";
 import { sha256Hex } from "@/lib/media/hash";
+import { revalidatePublicPropertyPaths } from "@/lib/public-catalog/revalidate";
 
 export type MediaActionErrorCode =
   | "NOT_FOUND"
@@ -132,6 +133,7 @@ export async function addPropertyMedia(user: AuthenticatedUser, propertyId: stri
       },
     });
 
+    revalidatePublicPropertyPaths(property.slug);
     return media;
   } catch (error) {
     await deleteMediaFiles(storageKey);
@@ -186,6 +188,7 @@ export async function updatePropertyMedia(user: AuthenticatedUser, mediaId: stri
     });
   }
 
+  revalidatePublicPropertyPaths(media.property.slug);
   return updated;
 }
 
@@ -218,6 +221,8 @@ export async function deletePropertyMedia(user: AuthenticatedUser, mediaId: stri
       metadata: { reference: media.property.reference, mediaId },
     },
   });
+
+  revalidatePublicPropertyPaths(media.property.slug);
 }
 
 export async function reorderPropertyMedia(user: AuthenticatedUser, propertyId: string, rawBody: unknown) {
@@ -247,4 +252,6 @@ export async function reorderPropertyMedia(user: AuthenticatedUser, propertyId: 
       metadata: { reference: property.reference, mediaCount: order.length },
     },
   });
+
+  revalidatePublicPropertyPaths(property.slug);
 }

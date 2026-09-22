@@ -1,11 +1,12 @@
 import Link from "next/link";
 import Reveal from "@/components/Reveal";
-import { cityTaglines, getCities } from "@/lib/properties";
+import { cityTaglines } from "@/lib/properties";
+import { getPublicCityCounts } from "@/lib/public-catalog/queries";
 
 const priorityOrder = ["Marrakech", "Casablanca"];
 
-export default function CityGrid() {
-  const cities = [...getCities()].sort((a, b) => {
+export default async function CityGrid() {
+  const cities = [...(await getPublicCityCounts())].sort((a, b) => {
     const rankA = priorityOrder.indexOf(a.name);
     const rankB = priorityOrder.indexOf(b.name);
     if (rankA === -1 && rankB === -1) return 0;

@@ -12,7 +12,7 @@ export async function listPropertyExternalLinks(propertyId: string) {
 export async function getPropertyForLinkAccess(propertyId: string) {
   return prisma.property.findUnique({
     where: { id: propertyId },
-    select: { id: true, reference: true, createdById: true, assignedToId: true, publicationStatus: true, visibility: true },
+    select: { id: true, slug: true, reference: true, createdById: true, assignedToId: true, publicationStatus: true, visibility: true },
   });
 }
 
@@ -21,7 +21,7 @@ export async function getExternalLinkWithProperty(linkId: string) {
     where: { id: linkId },
     include: {
       property: {
-        select: { id: true, reference: true, createdById: true, assignedToId: true, publicationStatus: true, visibility: true },
+        select: { id: true, slug: true, reference: true, createdById: true, assignedToId: true, publicationStatus: true, visibility: true },
       },
     },
   });

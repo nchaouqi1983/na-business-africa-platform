@@ -32,6 +32,8 @@ export const adminNavItems: AdminNavItem[] = [
   { label: "Intermédiaires", href: "/admin/intermediaires", roles: REAL_ESTATE_NETWORK_ROLES },
   { label: "Mandats", href: "/admin/mandats", roles: REAL_ESTATE_NETWORK_ROLES },
   { label: "Commissions", href: "/admin/commissions", roles: REAL_ESTATE_NETWORK_ROLES },
-  { label: "Médias", href: "#medias", disabled: true },
+  // No standalone "Médias" entry — media management already lives inside
+  // each bien's own "Médias" tab (app/admin/biens/[id]), so a disabled
+  // "coming soon" link here would be misleading.
   { label: "Paramètres", href: "#parametres", disabled: true },
 ];

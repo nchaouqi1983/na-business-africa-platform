@@ -19,7 +19,7 @@ export async function listPropertyDocuments(propertyId: string, includeRestricte
 export async function getPropertyForDocumentAccess(propertyId: string) {
   return prisma.property.findUnique({
     where: { id: propertyId },
-    select: { id: true, reference: true, createdById: true, assignedToId: true, publicationStatus: true, visibility: true },
+    select: { id: true, slug: true, reference: true, createdById: true, assignedToId: true, publicationStatus: true, visibility: true },
   });
 }
 
@@ -28,7 +28,7 @@ export async function getDocumentWithProperty(documentId: string) {
     where: { id: documentId },
     include: {
       property: {
-        select: { id: true, reference: true, createdById: true, assignedToId: true, publicationStatus: true, visibility: true },
+        select: { id: true, slug: true, reference: true, createdById: true, assignedToId: true, publicationStatus: true, visibility: true },
       },
     },
   });

@@ -7,14 +7,14 @@ import PropertyCard from "@/components/PropertyCard";
 import SearchBar from "@/components/SearchBar";
 import Reveal from "@/components/Reveal";
 import ScrollRail from "@/components/ScrollRail";
+import { cityTaglines, propertyTypeLabels } from "@/lib/properties";
+import { propertyTypeFromDb } from "@/lib/admin/property-enum-maps";
+import { gradientForKey } from "@/lib/public-catalog/gradients";
 import {
-  cityTaglines,
-  getCities,
-  getFeaturedProperties,
-  properties,
-  propertyTypeLabels,
-  propertyTypes,
-} from "@/lib/properties";
+  getFeaturedPublicProperties,
+  getPublicCityCounts,
+  getDistinctPublicPropertyTypes,
+} from "@/lib/public-catalog/queries";
 
 export const metadata: Metadata = {
   title: "NA Business Africa — L'immobilier d'exception commence par une relation de confiance",
@@ -29,17 +29,16 @@ const heroStats = [
   { value: "Maroc", label: "Présente partout" },
 ];
 
-export default function Home() {
-  const cities = getCities();
-  const featured = getFeaturedProperties(4);
+export default async function Home() {
+  const [cities, featured, dbTypes] = await Promise.all([
+    getPublicCityCounts(),
+    getFeaturedPublicProperties(4),
+    getDistinctPublicPropertyTypes(),
+  ]);
 
-  const categories = Array.from(new Set(properties.map((property) => property.type))).map((type) => {
-    const sample = properties.find((property) => property.type === type)!;
-    return {
-      type,
-      label: propertyTypeLabels[type],
-      gradient: sample.media.placeholderGradient,
-    };
+  const categories = dbTypes.map((dbType) => {
+    const type = propertyTypeFromDb[dbType];
+    return { type, label: propertyTypeLabels[type], gradient: gradientForKey(dbType) };
   });
 
   return (
@@ -118,7 +117,7 @@ export default function Home() {
               Ville, type de bien et budget — en un instant.
             </span>
           </div>
-          <SearchBar variant="panel" cities={cities.map((city) => city.name)} types={propertyTypes} />
+          <SearchBar variant="panel" cities={cities.map((city) => city.name)} types={categories.map((category) => category.label)} />
         </div>
       </section>
 

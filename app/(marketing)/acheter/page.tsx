@@ -5,7 +5,7 @@ import SectionTitle from "@/components/SectionTitle";
 import PropertyCard from "@/components/PropertyCard";
 import SearchBar from "@/components/SearchBar";
 import Reveal from "@/components/Reveal";
-import { properties } from "@/lib/properties";
+import { getPublicPropertiesForSale } from "@/lib/public-catalog/queries";
 import CategoryGrid from "./_components/CategoryGrid";
 import AcquisitionSteps from "./_components/AcquisitionSteps";
 import CityGrid from "./_components/CityGrid";
@@ -29,10 +29,8 @@ const searchTypes = [
   "Programme neuf",
 ];
 
-export default function AcheterPage() {
-  const selection = properties
-    .filter((property) => property.transaction === "vente" && property.visibility.isPublic)
-    .slice(0, 4);
+export default async function AcheterPage() {
+  const selection = await getPublicPropertiesForSale(4);
 
   return (
     <div className="flex flex-col">

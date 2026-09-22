@@ -10,21 +10,14 @@ import PropertyDocuments from "@/components/property/PropertyDocuments";
 import ContactSidebar from "@/components/property/ContactSidebar";
 import SimilarProperties from "@/components/property/SimilarProperties";
 import { getPropertyGallery } from "@/lib/property-gallery";
-import { properties, propertyTypeLabels } from "@/lib/properties";
-
-function findProperty(slug: string) {
-  return properties.find((property) => property.slug === slug);
-}
-
-export function generateStaticParams() {
-  return properties.map((property) => ({ slug: property.slug }));
-}
+import { propertyTypeLabels } from "@/lib/properties";
+import { getPublicPropertyBySlug } from "@/lib/public-catalog/queries";
 
 export async function generateMetadata({
   params,
 }: PageProps<"/biens/[slug]">): Promise<Metadata> {
   const { slug } = await params;
-  const property = findProperty(slug);
+  const property = await getPublicPropertyBySlug(slug);
   if (!property) notFound();
 
   const discreet = property.visibility.isOffMarket;
@@ -33,6 +26,7 @@ export async function generateMetadata({
     title: property.seo.title.fr,
     description: property.seo.description.fr,
     robots: discreet ? { index: false, follow: false } : undefined,
+    alternates: { canonical: `/biens/${property.slug}` },
     openGraph: {
       title: property.seo.title.fr,
       description: property.seo.description.fr,
@@ -42,7 +36,7 @@ export async function generateMetadata({
 
 export default async function PropertyPage({ params }: PageProps<"/biens/[slug]">) {
   const { slug } = await params;
-  const property = findProperty(slug);
+  const property = await getPublicPropertyBySlug(slug);
   if (!property) notFound();
 
   const discreet = property.visibility.isOffMarket;
@@ -56,7 +50,7 @@ export default async function PropertyPage({ params }: PageProps<"/biens/[slug]"
           { label: "Accueil", href: "/" },
           { label: "Explorer", href: "/explorer" },
           { label: property.location.city, href: `/explorer?ville=${encodeURIComponent(property.location.city)}` },
-          { label: typeLabel, href: `/explorer?type=${encodeURIComponent(typeLabel)}` },
+          { label: typeLabel, href: `/explorer?type=${encodeURIComponent(property.type)}` },
         ]}
       />
 

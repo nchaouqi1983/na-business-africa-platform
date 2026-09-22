@@ -3,7 +3,7 @@ import Breadcrumb from "@/components/property/Breadcrumb";
 import Button from "@/components/Button";
 import SectionTitle from "@/components/SectionTitle";
 import Reveal from "@/components/Reveal";
-import { properties } from "@/lib/properties";
+import { getOffMarketPublicProperties } from "@/lib/public-catalog/queries";
 import OffMarketValues from "./_components/OffMarketValues";
 import OffMarketSelection from "./_components/OffMarketSelection";
 import OffMarketProcess from "./_components/OffMarketProcess";
@@ -15,8 +15,8 @@ export const metadata: Metadata = {
     "Accédez à une sélection confidentielle de biens immobiliers hors marché au Maroc : villas, riads et opportunités rares présentées uniquement aux profils qualifiés, avec l'accompagnement personnel de Niama.",
 };
 
-export default function OffMarketPage() {
-  const offMarketProperties = properties.filter((property) => property.visibility.isOffMarket === true);
+export default async function OffMarketPage() {
+  const offMarketProperties = await getOffMarketPublicProperties();
 
   return (
     <div className="flex flex-col">

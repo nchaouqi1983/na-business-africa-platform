@@ -12,7 +12,18 @@ export const metadata: Metadata = {
   description: "Tableau de bord de l'administration NA Business Africa.",
 };
 
-const upcomingModules = ["Médias", "Paramètres"];
+type QuickLink = { label: string; href: string; adminOnly?: boolean };
+
+const quickLinks: QuickLink[] = [
+  { label: "Ajouter un bien", href: "/admin/biens/nouveau" },
+  { label: "Voir les biens", href: "/admin/biens" },
+  { label: "Ajouter un prospect", href: "/admin/prospects/nouveau" },
+  { label: "Voir les demandes", href: "/admin/demandes" },
+  { label: "Planifier une visite", href: "/admin/visites/nouveau" },
+  { label: "Voir les actions / relances", href: "/admin/actions" },
+  { label: "Créer un mandat", href: "/admin/mandats/nouveau", adminOnly: true },
+  { label: "Voir les commissions", href: "/admin/commissions", adminOnly: true },
+];
 
 function paramValue(value: string | string[] | undefined): string {
   return Array.isArray(value) ? (value[0] ?? "") : (value ?? "");
@@ -237,15 +248,21 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
       </div>
 
       <div className="rounded-2xl border border-anthracite-100 bg-white p-6">
-        <h2 className="font-display text-lg font-semibold text-anthracite-950">Prochains modules</h2>
-        <ul className="mt-4 flex flex-col gap-2 text-sm text-anthracite-600">
-          {upcomingModules.map((module) => (
-            <li key={module} className="flex items-center gap-2">
-              <span className="h-1.5 w-1.5 rounded-full bg-gold-500" aria-hidden="true" />
-              {module}
-            </li>
-          ))}
-        </ul>
+        <h2 className="font-display text-lg font-semibold text-anthracite-950">Accès rapides</h2>
+        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          {quickLinks
+            .filter((link) => !link.adminOnly || isAdminRole)
+            .map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="flex items-center justify-between gap-2 rounded-xl border border-anthracite-100 px-4 py-3 text-sm font-medium text-anthracite-700 transition-colors hover:border-gold-400 hover:text-anthracite-950"
+              >
+                {link.label}
+                <span aria-hidden="true" className="text-gold-500">→</span>
+              </Link>
+            ))}
+        </div>
       </div>
     </div>
   );

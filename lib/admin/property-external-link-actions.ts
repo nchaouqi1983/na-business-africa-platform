@@ -15,6 +15,7 @@ import {
   type PatchExternalLinkInput,
 } from "@/lib/admin/property-external-link-schema";
 import { MAX_LINKS_PER_PROPERTY, type ExternalLinkTypeValue } from "@/lib/external-links/constants";
+import { revalidatePublicPropertyPaths } from "@/lib/public-catalog/revalidate";
 
 export type LinkActionErrorCode = "NOT_FOUND" | "FORBIDDEN" | "LIMIT_REACHED" | "BAD_REQUEST";
 
@@ -96,6 +97,7 @@ export async function addPropertyExternalLink(user: AuthenticatedUser, propertyI
     },
   });
 
+  revalidatePublicPropertyPaths(property.slug);
   return link;
 }
 
@@ -143,6 +145,7 @@ export async function updatePropertyExternalLink(user: AuthenticatedUser, linkId
     },
   });
 
+  revalidatePublicPropertyPaths(link.property.slug);
   return updated;
 }
 
@@ -164,6 +167,8 @@ export async function deletePropertyExternalLink(user: AuthenticatedUser, linkId
       metadata: { reference: link.property.reference, linkId, type: link.type },
     },
   });
+
+  revalidatePublicPropertyPaths(link.property.slug);
 }
 
 export async function reorderPropertyExternalLinks(user: AuthenticatedUser, propertyId: string, rawBody: unknown) {
@@ -193,4 +198,6 @@ export async function reorderPropertyExternalLinks(user: AuthenticatedUser, prop
       metadata: { reference: property.reference, linkCount: order.length },
     },
   });
+
+  revalidatePublicPropertyPaths(property.slug);
 }

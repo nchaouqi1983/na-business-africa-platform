@@ -16,14 +16,12 @@ import {
   type Availability,
   type FilterGroupId,
   type FurnishedState,
-  type Property,
   type PropertyCondition,
   type PropertyFilterState,
   type PropertyProximities,
   type PropertyTagDefinition,
   type TagCategory,
 } from "@/lib/property-schema";
-import { developers } from "@/lib/properties";
 
 const tagCategoryLabels: Record<TagCategory, string> = {
   exterieur: "Extérieur",
@@ -45,7 +43,7 @@ const groupDisplayLabels: Partial<Record<FilterGroupId, string>> = {
 };
 
 type AdvancedFiltersProps = {
-  properties: Property[];
+  districts: string[];
   state: PropertyFilterState;
   onChange: (next: PropertyFilterState) => void;
 };
@@ -80,31 +78,7 @@ function ToggleChip({ active, onClick, children }: { active: boolean; onClick: (
   );
 }
 
-export default function AdvancedFilters({ properties, state, onChange }: AdvancedFiltersProps) {
-  const districts = useMemo(
-    () =>
-      Array.from(
-        new Set(
-          properties
-            .filter((property) => !state.city || property.location.city === state.city)
-            .map((property) => property.location.district)
-            .filter((district): district is string => Boolean(district))
-        )
-      ).sort(),
-    [properties, state.city]
-  );
-  const programOptions = useMemo(
-    () =>
-      Array.from(new Set(properties.map((property) => property.programId).filter((id): id is string => Boolean(id)))).map(
-        (programId) => {
-          const sample = properties.find((property) => property.programId === programId);
-          const label = sample?.details?.kind === "programme-neuf" ? sample.details.programName ?? programId : programId;
-          return { value: programId, label: label ?? programId };
-        }
-      ),
-    [properties]
-  );
-
+export default function AdvancedFilters({ districts, state, onChange }: AdvancedFiltersProps) {
   const tagsByCategory = useMemo(() => {
     const groups = new Map<TagCategory, PropertyTagDefinition[]>();
     for (const tag of publicTagsForType(state.type)) {
@@ -124,7 +98,12 @@ export default function AdvancedFilters({ properties, state, onChange }: Advance
   }
 
   const subTypeOptions = state.type ? propertySubTypesByType[state.type] : [];
-  const visibleGroups = filterGroups.filter((group) => !group.essential && isGroupRelevantForType(group.id, state.type));
+  // "programme" has no queryable public data source yet (promoter/program are
+  // internal-only entities — see lib/public-catalog/queries.ts) so it's left
+  // out entirely rather than shown with dead controls.
+  const visibleGroups = filterGroups.filter(
+    (group) => !group.essential && group.id !== "programme" && isGroupRelevantForType(group.id, state.type)
+  );
 
   return (
     <div className="flex flex-col gap-3">
@@ -344,38 +323,6 @@ export default function AdvancedFilters({ properties, state, onChange }: Advance
               </div>
             )}
 
-            {group.id === "programme" && (
-              <div className="flex flex-col gap-4">
-                <Field label="Promoteur">
-                  <select value={state.developerId} onChange={(event) => set("developerId", event.target.value)} className={inputClass}>
-                    <option value="">Tous les promoteurs</option>
-                    {developers.map((developer) => (
-                      <option key={developer.id} value={developer.id}>
-                        {developer.name}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-                <Field label="Programme">
-                  <select value={state.programId} onChange={(event) => set("programId", event.target.value)} className={inputClass}>
-                    <option value="">Tous les programmes</option>
-                    {programOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-                <Field label="Livraison avant le">
-                  <input
-                    type="date"
-                    value={state.deliveryBefore}
-                    onChange={(event) => set("deliveryBefore", event.target.value)}
-                    className={inputClass}
-                  />
-                </Field>
-              </div>
-            )}
           </div>
         </details>
       ))}

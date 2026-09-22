@@ -12,7 +12,7 @@ export async function listPropertyMedia(propertyId: string) {
 export async function getPropertyForMediaAccess(propertyId: string) {
   return prisma.property.findUnique({
     where: { id: propertyId },
-    select: { id: true, reference: true, createdById: true, assignedToId: true, publicationStatus: true },
+    select: { id: true, slug: true, reference: true, createdById: true, assignedToId: true, publicationStatus: true },
   });
 }
 
@@ -21,7 +21,7 @@ export async function getMediaWithProperty(mediaId: string) {
     where: { id: mediaId },
     include: {
       property: {
-        select: { id: true, reference: true, createdById: true, assignedToId: true, publicationStatus: true },
+        select: { id: true, slug: true, reference: true, createdById: true, assignedToId: true, publicationStatus: true },
       },
     },
   });

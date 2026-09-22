@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import Badge from "@/components/Badge";
 import {
@@ -44,15 +45,27 @@ export default function PropertyCard({ property }: PropertyCardProps) {
       className="group flex flex-col overflow-hidden rounded-2xl border border-anthracite-100 bg-white shadow-sm transition-shadow duration-300 hover:shadow-xl"
     >
       <div
-        className={`relative flex h-56 flex-col justify-between bg-gradient-to-br p-5 ${property.media.placeholderGradient}`}
+        className={`relative flex h-56 flex-col justify-between overflow-hidden bg-gradient-to-br p-5 ${property.media.placeholderGradient}`}
       >
-        <div className="flex items-center justify-between">
+        {property.media.coverImage && (
+          <>
+            <Image
+              src={property.media.coverImage}
+              alt={property.title.fr}
+              fill
+              sizes="(min-width: 1024px) 25vw, 100vw"
+              className="absolute inset-0 object-cover"
+            />
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-anthracite-950/70 via-anthracite-950/10 to-transparent" />
+          </>
+        )}
+        <div className="relative flex items-center justify-between">
           {badge ? <Badge tone={badge.tone}>{badge.label}</Badge> : <span />}
           <Badge tone="outline" className="border-white/30 text-white">
             {propertyTypeLabels[property.type]}
           </Badge>
         </div>
-        <p className="font-display text-sm uppercase tracking-[0.3em] text-white/70">
+        <p className="relative font-display text-sm uppercase tracking-[0.3em] text-white/70">
           {property.location.city}
         </p>
       </div>

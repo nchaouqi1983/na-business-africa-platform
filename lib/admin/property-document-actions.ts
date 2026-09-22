@@ -16,6 +16,7 @@ import {
 import { MAX_DOCUMENT_FILE_BYTES, MAX_DOCUMENTS_PER_PROPERTY, isRestrictedDocumentType, type DocumentTypeValue } from "@/lib/documents/constants";
 import { sniffIsPdf } from "@/lib/documents/sniff";
 import { buildDocumentStorageKey, deleteDocumentFile, writeDocumentFile } from "@/lib/documents/storage";
+import { revalidatePublicPropertyPaths } from "@/lib/public-catalog/revalidate";
 
 export type DocumentActionErrorCode =
   | "NOT_FOUND"
@@ -141,6 +142,7 @@ export async function addPropertyDocument(
       },
     });
 
+    revalidatePublicPropertyPaths(property.slug);
     return document;
   } catch (error) {
     await deleteDocumentFile(storageKey);
@@ -175,6 +177,7 @@ export async function updatePropertyDocument(user: AuthenticatedUser, documentId
     },
   });
 
+  revalidatePublicPropertyPaths(document.property.slug);
   return updated;
 }
 
@@ -198,6 +201,8 @@ export async function deletePropertyDocument(user: AuthenticatedUser, documentId
       metadata: { reference: document.property.reference, documentId, type: document.type },
     },
   });
+
+  revalidatePublicPropertyPaths(document.property.slug);
 }
 
 export async function reorderPropertyDocuments(user: AuthenticatedUser, propertyId: string, rawBody: unknown) {
@@ -235,4 +240,6 @@ export async function reorderPropertyDocuments(user: AuthenticatedUser, property
       metadata: { reference: property.reference, documentCount: order.length },
     },
   });
+
+  revalidatePublicPropertyPaths(property.slug);
 }

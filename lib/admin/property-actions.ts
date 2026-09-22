@@ -48,6 +48,7 @@ import { generateUniquePropertySlug, slugify } from "@/lib/admin/slugify";
 import { generateNextPropertyReference } from "@/lib/admin/reference";
 import { resolveExistingActiveTagSlugs } from "@/lib/admin/property-tags";
 import { zodFieldErrors } from "@/lib/admin/zod-helpers";
+import { revalidatePublicPropertyPaths } from "@/lib/public-catalog/revalidate";
 
 export type PropertyFormState =
   | {
@@ -480,6 +481,7 @@ export async function updatePropertyDossier(
 
   revalidatePath(`/admin/biens/${id}`);
   revalidatePath("/admin/biens");
+  revalidatePublicPropertyPaths(existing.slug, slug);
   redirect(`/admin/biens/${id}`);
 }
 
@@ -651,6 +653,7 @@ export async function publishProperty(id: string): Promise<void> {
   revalidatePath(`/admin/biens/${id}`);
   revalidatePath("/admin/biens");
   revalidatePath("/admin");
+  revalidatePublicPropertyPaths(property.slug);
   redirect(`/admin/biens/${id}`);
 }
 
@@ -681,6 +684,7 @@ export async function unpublishProperty(id: string): Promise<void> {
   revalidatePath(`/admin/biens/${id}`);
   revalidatePath("/admin/biens");
   revalidatePath("/admin");
+  revalidatePublicPropertyPaths(property.slug);
   redirect(`/admin/biens/${id}`);
 }
 
@@ -711,5 +715,6 @@ export async function archiveProperty(id: string): Promise<void> {
   revalidatePath(`/admin/biens/${id}`);
   revalidatePath("/admin/biens");
   revalidatePath("/admin");
+  revalidatePublicPropertyPaths(property.slug);
   redirect(`/admin/biens/${id}`);
 }
