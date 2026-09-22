@@ -23,7 +23,11 @@ import { searchActiveOwners } from "@/lib/real-estate-network/owner-queries";
 import { searchActiveIntermediaries } from "@/lib/real-estate-network/intermediary-queries";
 import { listActiveProgramsWithLotsForPicker } from "@/lib/real-estate-network/program-queries";
 import { searchActivePromoters } from "@/lib/real-estate-network/promoter-queries";
+import { canManageFinance } from "@/lib/finance/permissions";
+import { listMandatesForProperty } from "@/lib/finance/mandate-queries";
+import { listCommissionCasesForProperty } from "@/lib/finance/commission-queries";
 import PropertyRelationsSection from "../_components/PropertyRelationsSection";
+import MandateCommissionSection from "../_components/MandateCommissionSection";
 import {
   archiveProperty,
   publishProperty,
@@ -81,6 +85,7 @@ export default async function PropertyDetailPage({
   const canSeeRestrictedDocuments = canViewRestrictedDocuments(user.role);
   const canAssign = canManageTags(user.role);
   const canManageNetwork = canManageRealEstateNetwork(user.role);
+  const canManageFinanceModule = canManageFinance(user.role);
 
   const [
     allTags,
@@ -96,6 +101,8 @@ export default async function PropertyDetailPage({
     pickerIntermediaries,
     pickerPrograms,
     pickerPromoters,
+    propertyMandates,
+    propertyCommissionCases,
   ] = await Promise.all([
     listActiveTags(),
     canAssign ? listAssignableUsers() : Promise.resolve([]),
@@ -106,10 +113,12 @@ export default async function PropertyDetailPage({
     canManageNetwork ? listPropertyOwnerLinks(id) : Promise.resolve([]),
     canManageNetwork ? listPropertyIntermediaryLinks(id) : Promise.resolve([]),
     canManageNetwork ? getPropertyDevelopmentLink(id) : Promise.resolve(null),
-    canManageNetwork ? searchActiveOwners() : Promise.resolve([]),
+    canManageNetwork || canManageFinanceModule ? searchActiveOwners() : Promise.resolve([]),
     canManageNetwork ? searchActiveIntermediaries() : Promise.resolve([]),
     canManageNetwork ? listActiveProgramsWithLotsForPicker() : Promise.resolve([]),
     canManageNetwork ? searchActivePromoters() : Promise.resolve([]),
+    canManageFinanceModule ? listMandatesForProperty(id) : Promise.resolve([]),
+    canManageFinanceModule ? listCommissionCasesForProperty(id) : Promise.resolve([]),
   ]);
 
   const boundUpdate = updatePropertyDossier.bind(null, property.id);
@@ -362,6 +371,29 @@ export default async function PropertyDetailPage({
         />
       ) : (
         <p className="text-sm text-anthracite-400">Votre rôle ne permet pas d&apos;accéder aux relations internes de ce bien.</p>
+      )}
+
+      {canManageFinanceModule && (
+        <MandateCommissionSection
+          propertyId={property.id}
+          mandates={propertyMandates.map((mandate) => ({
+            id: mandate.id,
+            reference: mandate.reference,
+            type: mandate.type,
+            status: mandate.status,
+            owner: mandate.owner,
+            commissionCases: mandate.commissionCases,
+          }))}
+          commissionCases={propertyCommissionCases.map((commissionCase) => ({
+            id: commissionCase.id,
+            reference: commissionCase.reference,
+            status: commissionCase.status,
+            transaction: commissionCase.transaction,
+            agencyCommissionAmount: Number(commissionCase.agencyCommissionAmount),
+            currency: commissionCase.currency,
+          }))}
+          pickerOwners={pickerOwners.map((owner) => ({ id: owner.id, label: owner.fullNameOrCompany }))}
+        />
       )}
     </div>
   );

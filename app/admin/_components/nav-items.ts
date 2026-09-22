@@ -24,9 +24,10 @@ export const adminNavItems: AdminNavItem[] = [
   { label: "Promoteurs", href: "/admin/promoteurs", roles: REAL_ESTATE_NETWORK_ROLES },
   { label: "Programmes neufs", href: "/admin/programmes", roles: REAL_ESTATE_NETWORK_ROLES },
   { label: "Intermédiaires", href: "/admin/intermediaires", roles: REAL_ESTATE_NETWORK_ROLES },
+  { label: "Mandats", href: "/admin/mandats", roles: REAL_ESTATE_NETWORK_ROLES },
+  { label: "Commissions", href: "/admin/commissions", roles: REAL_ESTATE_NETWORK_ROLES },
   { label: "Demandes", href: "#demandes", disabled: true },
   { label: "Visites", href: "#visites", disabled: true },
   { label: "Médias", href: "#medias", disabled: true },
-  { label: "Commissions", href: "#commissions", disabled: true },
   { label: "Paramètres", href: "#parametres", disabled: true },
 ];

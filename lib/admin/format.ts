@@ -17,6 +17,12 @@ export function formatPrice(price: Prisma.Decimal | number | null, priceOnReques
   return madFormatter.format(Number(price));
 }
 
+/** Plain MAD-formatted amount, for finance-module figures with no "price on request" concept. */
+export function madAmount(value: Prisma.Decimal | number | null | undefined): string {
+  if (value === null || value === undefined) return "—";
+  return madFormatter.format(Number(value));
+}
+
 export function formatDateTime(date: Date): string {
   return dateTimeFormatter.format(date);
 }

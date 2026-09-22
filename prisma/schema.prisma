@@ -35,6 +35,10 @@ model User {
   updatedProperties  Property[]         @relation("PropertyUpdatedBy")
   uploadedMedia      PropertyMedia[]    @relation("PropertyMediaUploadedBy")
   uploadedDocuments  PropertyDocument[] @relation("PropertyDocumentUploadedBy")
+
+  createdMandates        Mandate[]         @relation("MandateCreatedBy")
+  createdCommissionCases CommissionCase[]  @relation("CommissionCaseCreatedBy")
+  commissionShareAsAgent CommissionShare[] @relation("CommissionShareAgent")
 }
 
 model Session {
@@ -276,6 +280,9 @@ model Property {
   owners         PropertyOwner[]
   intermediaries PropertyIntermediary[]
 
+  mandates        Mandate[]
+  commissionCases CommissionCase[]
+
   @@index([city])
   @@index([transaction])
   @@index([propertyType])
@@ -443,6 +450,8 @@ model PropertyDocument {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  mandate Mandate?
+
   @@index([propertyId, sortOrder])
 }
 
@@ -551,6 +560,7 @@ model Owner {
   updatedAt DateTime @updatedAt
 
   propertyLinks PropertyOwner[]
+  mandates      Mandate[]
 
   @@index([isActive])
   @@index([city])
@@ -644,7 +654,8 @@ model Intermediary {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  propertyLinks PropertyIntermediary[]
+  propertyLinks    PropertyIntermediary[]
+  commissionShares CommissionShare[]
 
   @@index([isActive])
   @@index([type])
@@ -694,4 +705,273 @@ model PropertyIntermediary {
 
   @@unique([propertyId, intermediaryId])
   @@index([intermediaryId])
+}
+
+// ---------------------------------------------------------------------------
+// Mandates, commissions & internal financial follow-up (phase 6F)
+//
+// Strictly internal: never read by the public site, never exposed to
+// AGENT/EDITOR/VIEWER — even via direct URL or Server Action (see
+// lib/finance/permissions.ts, canManageFinance). Every query/action layer
+// must re-check that helper itself; there is no schema-level enforcement.
+//
+// No online payment integration and no official accounting: CommissionPayment
+// only tracks manually-entered settlement status. No automatic legal tax is
+// computed anywhere in this module — every rate and amount is admin-entered
+// or admin-validated.
+//
+// Nothing here is ever physically deleted once it has payments attached —
+// a Mandate is retired via MandateStatus.RESILIE and a CommissionCase via
+// CommissionCaseStatus.ANNULEE, never prisma.delete().
+// ---------------------------------------------------------------------------
+
+enum MandateType {
+  VENTE
+  LOCATION
+  EXCLUSIF
+  SIMPLE
+  OFF_MARKET
+}
+
+enum MandateStatus {
+  BROUILLON
+  ACTIF
+  EXPIRE
+  RESILIE
+  FINALISE
+}
+
+/**
+ * Atomic counter for the MAN-YYYY-000001 mandate reference, same pattern as
+ * PropertyReferenceCounter (see lib/finance/reference.ts) — never derived
+ * from a count() of existing rows.
+ */
+model MandateReferenceCounter {
+  year Int @id
+  seq  Int @default(0)
+}
+
+model Mandate {
+  id        String @id @default(cuid())
+  reference String @unique
+
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  ownerId    String?
+  owner      Owner?   @relation(fields: [ownerId], references: [id])
+
+  type   MandateType
+  status MandateStatus @default(BROUILLON)
+
+  startDate DateTime?
+  endDate   DateTime?
+
+  isExclusive Boolean @default(false)
+
+  displayedPrice       Decimal? @db.Decimal(14, 2)
+  agreedNetSellerPrice Decimal? @db.Decimal(14, 2)
+
+  internalConditions String?
+
+  /**
+   * Optional link to the scanned mandate PDF, already uploaded through the
+   * phase 6D document manager (type MANDAT). One document can back at most
+   * one mandate (@unique) — it is never uploaded from this module directly.
+   */
+  documentId String?           @unique
+  document   PropertyDocument? @relation(fields: [documentId], references: [id])
+
+  createdById String
+  createdBy   User   @relation("MandateCreatedBy", fields: [createdById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  commissionCases CommissionCase[]
+
+  @@index([propertyId])
+  @@index([ownerId])
+  @@index([status])
+  @@index([type])
+  @@index([endDate])
+}
+
+enum CommissionTransactionType {
+  VENTE
+  LOCATION
+}
+
+enum CommissionCaseStatus {
+  PREVISION
+  A_CONFIRMER
+  DUE
+  PARTIELLEMENT_PAYEE
+  PAYEE
+  ANNULEE
+}
+
+enum CommissionBasis {
+  PRIX_FINAL
+  LOYER_ANNUEL
+  MONTANT_FIXE
+}
+
+enum CommissionBilledTo {
+  VENDEUR
+  ACQUEREUR
+  LOCATAIRE
+}
+
+/**
+ * Atomic counter for the COM-YYYY-000001 commission-case reference, same
+ * pattern as PropertyReferenceCounter / MandateReferenceCounter.
+ */
+model CommissionReferenceCounter {
+  year Int @id
+  seq  Int @default(0)
+}
+
+model CommissionCase {
+  id        String @id @default(cuid())
+  reference String @unique
+
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  mandateId  String?
+  mandate    Mandate? @relation(fields: [mandateId], references: [id])
+
+  transaction CommissionTransactionType
+  status      CommissionCaseStatus      @default(PREVISION)
+
+  basis      CommissionBasis
+  baseAmount Decimal @db.Decimal(14, 2)
+
+  /**
+   * Rate is optional (a case can be a flat MONTANT_FIXE with no rate at
+   * all); the resulting agency amount is always populated, whether it was
+   * computed from the rate or entered directly — see
+   * lib/finance/commission-actions.ts.
+   */
+  agencyCommissionRate   Decimal? @db.Decimal(5, 2)
+  agencyCommissionAmount Decimal  @db.Decimal(14, 2)
+
+  billedTo CommissionBilledTo?
+
+  currency String @default("MAD")
+
+  finalTransactionAmount Decimal? @db.Decimal(14, 2)
+
+  expectedCollectionDate DateTime?
+  internalNotes          String?
+
+  createdById String
+  createdBy   User   @relation("CommissionCaseCreatedBy", fields: [createdById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  shares   CommissionShare[]
+  payments CommissionPayment[]
+
+  @@index([propertyId])
+  @@index([mandateId])
+  @@index([status])
+  @@index([transaction])
+}
+
+enum CommissionBeneficiaryType {
+  AGENCE
+  INTERMEDIAIRE
+  AGENT_INTERNE
+  AUTRE
+}
+
+enum CommissionShareMode {
+  POURCENTAGE
+  MONTANT_FIXE
+}
+
+enum CommissionShareStatus {
+  PREVU
+  VALIDE
+  PAYE
+}
+
+/**
+ * A share can never be deleted once it has a CommissionPayment pointing at
+ * it — enforced at the action layer, not by onDelete restrictions, so the
+ * error message can stay in French and specific.
+ */
+model CommissionShare {
+  id String @id @default(cuid())
+
+  commissionCaseId String
+  commissionCase   CommissionCase @relation(fields: [commissionCaseId], references: [id], onDelete: Cascade)
+
+  beneficiaryType CommissionBeneficiaryType
+
+  intermediaryId String?
+  intermediary   Intermediary? @relation(fields: [intermediaryId], references: [id])
+  userId         String?
+  user           User?         @relation("CommissionShareAgent", fields: [userId], references: [id])
+
+  /** Only ever set (and only ever meaningful) when beneficiaryType is AUTRE. */
+  freeBeneficiaryName String?
+
+  mode  CommissionShareMode
+  value Decimal             @db.Decimal(14, 2)
+
+  /**
+   * Always populated: `value` directly when mode is MONTANT_FIXE, or
+   * value% of the parent CommissionCase.agencyCommissionAmount when mode is
+   * POURCENTAGE — recomputed server-side on every write, never trusted from
+   * the client.
+   */
+  computedAmount Decimal @db.Decimal(14, 2)
+
+  status CommissionShareStatus @default(PREVU)
+  notes  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  payments CommissionPayment[]
+
+  @@index([commissionCaseId])
+  @@index([intermediaryId])
+  @@index([userId])
+}
+
+enum CommissionPaymentStatus {
+  PREVU
+  RECU
+  PARTIEL
+  ANNULE
+}
+
+model CommissionPayment {
+  id String @id @default(cuid())
+
+  commissionCaseId  String
+  commissionCase    CommissionCase   @relation(fields: [commissionCaseId], references: [id], onDelete: Cascade)
+  commissionShareId String?
+  commissionShare   CommissionShare? @relation(fields: [commissionShareId], references: [id])
+
+  amount Decimal @db.Decimal(14, 2)
+
+  expectedDate DateTime?
+  paidDate     DateTime?
+
+  status CommissionPaymentStatus @default(PREVU)
+
+  internalReference String?
+  paymentMethod     String?
+  internalNote      String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([commissionCaseId])
+  @@index([commissionShareId])
+  @@index([status])
 }
