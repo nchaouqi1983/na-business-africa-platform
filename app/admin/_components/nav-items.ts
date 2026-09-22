@@ -18,6 +18,8 @@ const REAL_ESTATE_NETWORK_ROLES: Role[] = ["SUPER_ADMIN", "ADMIN"];
 
 export const adminNavItems: AdminNavItem[] = [
   { label: "Tableau de bord", href: "/admin" },
+  { label: "Aujourd'hui", href: "/admin/aujourd-hui" },
+  { label: "Notifications", href: "/admin/notifications" },
   { label: "Biens", href: "/admin/biens" },
   { label: "Ajouter un bien", href: "/admin/biens/nouveau" },
   { label: "Demandes", href: "/admin/demandes" },

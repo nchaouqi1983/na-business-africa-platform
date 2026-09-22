@@ -8,6 +8,7 @@ import { requireAdminUser } from "@/lib/auth/dal";
 import { canCreateProspect, canEditProspect } from "@/lib/crm/permissions";
 import { parseProspectForm, parseProspectStatusForm, parsePropertyInterestForm, type ProspectFormInput } from "@/lib/crm/prospect-schema";
 import { generateNextProspectReference } from "@/lib/crm/reference";
+import { notifyProspectAssigned } from "@/lib/crm/notification-service";
 import { zodFieldErrors } from "@/lib/admin/zod-helpers";
 
 export type ProspectFormState =
@@ -93,6 +94,10 @@ export async function createProspect(_prevState: ProspectFormState, formData: Fo
     },
   });
 
+  if (prospect.assignedToId) {
+    await notifyProspectAssigned(prospect, prospect.assignedToId);
+  }
+
   revalidatePath("/admin/prospects");
   revalidatePath("/admin/demandes");
   redirect(`/admin/prospects/${prospect.id}`);
@@ -173,6 +178,10 @@ export async function updateProspect(id: string, _prevState: ProspectFormState, 
     await prisma.auditLog.create({
       data: { userId: user.id, action: "PROSPECT_UPDATED", entity: "Prospect", entityId: id, metadata: { fieldsChanged: changedFields } },
     });
+  }
+
+  if (parsed.data.assignedToId && parsed.data.assignedToId !== existing.assignedToId) {
+    await notifyProspectAssigned({ id, reference: existing.reference }, parsed.data.assignedToId);
   }
 
   revalidatePath(`/admin/prospects/${id}`);

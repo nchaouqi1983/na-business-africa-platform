@@ -9,6 +9,7 @@ import type {
   ProspectFormOrigin as DbProspectFormOrigin,
 } from "@/lib/generated/prisma/client";
 import { generateNextProspectReference } from "@/lib/crm/reference";
+import { notifyNewPublicDemande } from "@/lib/crm/notification-service";
 import { prospectFormOriginLabels } from "@/lib/crm/enum-labels";
 import { propertyTypeToDb, transactionToDb } from "@/lib/admin/property-enum-maps";
 import { propertyTypeLabels } from "@/lib/property-schema";
@@ -164,6 +165,8 @@ async function submitPublicProspect(input: PublicProspectInput): Promise<void> {
         metadata: { type: prospect.type, source: prospect.source, formOrigin: input.formOrigin, result: "created" },
       },
     });
+
+    await notifyNewPublicDemande(prospect);
   }
 
   revalidatePath("/admin/demandes");

@@ -7,6 +7,7 @@ import { requireAdminUser } from "@/lib/auth/dal";
 import { canCreateVisit, canEditVisit, canViewProspect } from "@/lib/crm/permissions";
 import { parseVisitForm, type VisitFormInput } from "@/lib/crm/visit-schema";
 import { generateNextVisitReference } from "@/lib/crm/reference";
+import { notifyVisitCreated, notifyVisitUpdated, notifyVisitCancelled } from "@/lib/crm/notification-service";
 import { visitStatusValues, type VisitStatusValue } from "@/lib/crm/enum-labels";
 import { zodFieldErrors } from "@/lib/admin/zod-helpers";
 
@@ -91,6 +92,8 @@ export async function createVisit(_prevState: VisitFormState, formData: FormData
     },
   });
 
+  await notifyVisitCreated(visit);
+
   revalidatePath("/admin/visites");
   revalidatePath(`/admin/prospects/${prospectId}`);
   revalidatePath(`/admin/biens/${propertyId}`);
@@ -159,6 +162,20 @@ export async function updateVisit(id: string, _prevState: VisitFormState, formDa
     });
   }
 
+  const newlyCancelled = parsed.data.status === "ANNULEE" && existing.status !== "ANNULEE";
+  const meaningfulChange = changedFields.some((field) => ["scheduledStart", "scheduledEnd", "assignedToId", "status"].includes(field));
+
+  if (newlyCancelled) {
+    await notifyVisitCancelled({ id, reference: existing.reference, assignedToId: parsed.data.assignedToId ?? null });
+  } else if (meaningfulChange) {
+    await notifyVisitUpdated({
+      id,
+      reference: existing.reference,
+      scheduledStart: new Date(parsed.data.scheduledStart),
+      assignedToId: parsed.data.assignedToId ?? null,
+    });
+  }
+
   revalidatePath(`/admin/visites/${id}`);
   revalidatePath("/admin/visites");
   revalidatePath(`/admin/prospects/${existing.prospectId}`);
@@ -182,6 +199,10 @@ export async function setVisitStatus(id: string, status: VisitStatusValue): Prom
   await prisma.auditLog.create({
     data: { userId: user.id, action: "VISIT_STATUS_CHANGED", entity: "Visit", entityId: id, metadata: { status } },
   });
+
+  if (status === "ANNULEE" && visit.status !== "ANNULEE") {
+    await notifyVisitCancelled({ id, reference: visit.reference, assignedToId: visit.assignedToId });
+  }
 
   revalidatePath(`/admin/visites/${id}`);
   revalidatePath("/admin/visites");

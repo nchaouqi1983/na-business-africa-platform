@@ -151,3 +151,32 @@ export function visitAccessWhere(role: Role, userId: string): Prisma.VisitWhereI
 export function activityAccessWhere(role: Role, userId: string): Prisma.ActivityWhereInput | undefined {
   return ownershipWhere(role, userId);
 }
+
+export type OperationalScope = "mine" | "team";
+
+/**
+ * Row-level `where` for the dashboard / "Aujourd'hui" screens (phase 6H1),
+ * which additionally let SUPER_ADMIN/ADMIN narrow their own view to "Mes
+ * éléments" (own created/assigned rows) instead of the whole team's — the
+ * only role(s) `scope` has any effect for. AGENT/EDITOR/VIEWER always get
+ * their normal ownershipWhere regardless of `scope`, since the brief only
+ * grants them their own items in the first place.
+ */
+function operationalWhere(role: Role, userId: string, scope: OperationalScope): OwnershipWhere | undefined {
+  if (role === Role.SUPER_ADMIN || role === Role.ADMIN) {
+    return scope === "mine" ? { OR: [{ createdById: userId }, { assignedToId: userId }] } : undefined;
+  }
+  return ownershipWhere(role, userId);
+}
+
+export function prospectOperationalWhere(role: Role, userId: string, scope: OperationalScope): Prisma.ProspectWhereInput | undefined {
+  return operationalWhere(role, userId, scope);
+}
+
+export function visitOperationalWhere(role: Role, userId: string, scope: OperationalScope): Prisma.VisitWhereInput | undefined {
+  return operationalWhere(role, userId, scope);
+}
+
+export function activityOperationalWhere(role: Role, userId: string, scope: OperationalScope): Prisma.ActivityWhereInput | undefined {
+  return operationalWhere(role, userId, scope);
+}

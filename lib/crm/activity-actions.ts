@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import { requireAdminUser, type AuthenticatedUser } from "@/lib/auth/dal";
 import { canCreateActivity, canEditActivity, canViewProspect } from "@/lib/crm/permissions";
 import { parseActivityForm } from "@/lib/crm/activity-schema";
+import { notifyActivityCreated } from "@/lib/crm/notification-service";
 import { zodFieldErrors } from "@/lib/admin/zod-helpers";
 
 export type ActivityFormState = { error?: string; fieldErrors?: Record<string, string> } | undefined;
@@ -59,6 +60,15 @@ async function performCreateActivity(user: AuthenticatedUser, context: ActivityC
     },
   });
 
+  await notifyActivityCreated({
+    id: activity.id,
+    prospectId: context.prospectId,
+    prospectReference: prospect.reference,
+    assignedToId: activity.assignedToId,
+    dueAt: activity.dueAt,
+    status: activity.status,
+  });
+
   revalidatePath(`/admin/prospects/${context.prospectId}`);
   revalidatePath("/admin/actions");
   if (context.visitId) revalidatePath(`/admin/visites/${context.visitId}`);
@@ -81,6 +91,35 @@ export async function createStandaloneActivity(_prevState: ActivityFormState, fo
   const prospectId = String(formData.get("prospectId") ?? "").trim();
   if (!prospectId) return { error: "Merci de choisir un prospect.", fieldErrors: { prospectId: "Prospect requis." } };
   return performCreateActivity(user, { prospectId }, formData);
+}
+
+/**
+ * Marks an activity done and redirects to /admin/aujourd-hui with a prompt to
+ * create the next relance for the same prospect — used from that screen's
+ * "Terminer" button only (see the 6H1 brief's "proposer 'Créer une prochaine
+ * relance'"). Other screens keep using the plain setActivityStatus below,
+ * which never redirects.
+ */
+export async function completeActivityWithFollowUp(id: string, prospectId: string): Promise<void> {
+  const user = await requireAdminUser();
+
+  const activity = await prisma.activity.findUnique({ where: { id } });
+  if (!activity) redirect("/admin/aujourd-hui");
+  if (!canEditActivity(user.role, user.id, activity)) {
+    redirect("/admin/aujourd-hui?erreur=permission");
+  }
+
+  await prisma.activity.update({ where: { id }, data: { status: "TERMINEE", completedAt: new Date() } });
+
+  await prisma.auditLog.create({
+    data: { userId: user.id, action: "ACTIVITY_STATUS_CHANGED", entity: "Activity", entityId: id, metadata: { status: "TERMINEE" } },
+  });
+
+  revalidatePath(`/admin/prospects/${activity.prospectId}`);
+  revalidatePath("/admin/actions");
+  revalidatePath("/admin/aujourd-hui");
+  if (activity.visitId) revalidatePath(`/admin/visites/${activity.visitId}`);
+  redirect(`/admin/aujourd-hui?prochaine=${prospectId}`);
 }
 
 /** Marks an action as done/cancelled from any screen listing it (prospect 360°, visit detail, /admin/actions). */

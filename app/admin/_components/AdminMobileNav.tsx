@@ -12,9 +12,10 @@ type AdminMobileNavProps = {
   roleLabel: string;
   role: Role;
   logoutAction: () => void | Promise<void>;
+  unreadNotifications?: number;
 };
 
-export default function AdminMobileNav({ userLabel, roleLabel, role, logoutAction }: AdminMobileNavProps) {
+export default function AdminMobileNav({ userLabel, roleLabel, role, logoutAction, unreadNotifications = 0 }: AdminMobileNavProps) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -28,15 +29,20 @@ export default function AdminMobileNav({ userLabel, roleLabel, role, logoutActio
           onClick={() => setOpen((value) => !value)}
           aria-expanded={open}
           aria-label={open ? "Fermer le menu" : "Ouvrir le menu"}
-          className="flex h-10 w-10 items-center justify-center rounded-full border border-anthracite-200 text-anthracite-700"
+          className="relative flex h-10 w-10 items-center justify-center rounded-full border border-anthracite-200 text-anthracite-700"
         >
           {open ? "✕" : "☰"}
+          {!open && unreadNotifications > 0 && (
+            <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-gold-500 px-1 text-[10px] font-semibold text-anthracite-950">
+              {unreadNotifications > 99 ? "99+" : unreadNotifications}
+            </span>
+          )}
         </button>
       </div>
 
       {open && (
         <div className="mt-4 flex flex-col gap-4 border-t border-anthracite-100 pt-4">
-          <AdminSidebarNav role={role} onNavigate={() => setOpen(false)} />
+          <AdminSidebarNav role={role} onNavigate={() => setOpen(false)} unreadNotifications={unreadNotifications} />
           <div className="flex flex-col gap-3 border-t border-anthracite-100 pt-4">
             <div className="flex flex-col">
               <span className="text-sm font-medium text-anthracite-900">{userLabel}</span>

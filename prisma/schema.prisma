@@ -46,6 +46,8 @@ model User {
   assignedVisits     Visit[]    @relation("VisitAssignedTo")
   createdActivities  Activity[] @relation("ActivityCreatedBy")
   assignedActivities Activity[] @relation("ActivityAssignedTo")
+
+  notifications Notification[]
 }
 
 model Session {
@@ -1178,6 +1180,7 @@ model Prospect {
   propertyInterests ProspectPropertyInterest[]
   visits            Visit[]
   activities        Activity[]
+  notifications     Notification[]
 
   @@index([status])
   @@index([type])
@@ -1242,7 +1245,8 @@ model Visit {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  activities Activity[]
+  activities    Activity[]
+  notifications Notification[]
 
   @@index([propertyId])
   @@index([prospectId])
@@ -1279,6 +1283,8 @@ model Activity {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  notifications Notification[]
+
   @@index([prospectId])
   @@index([propertyId])
   @@index([visitId])
@@ -1286,4 +1292,48 @@ model Activity {
   @@index([status])
   @@index([dueAt])
   @@index([type])
+}
+
+// ---------------------------------------------------------------------------
+// Internal notifications (phase 6H1)
+//
+// Purely operational, server-created rows telling a back-office user what
+// needs their attention today — never an external channel (no e-mail/SMS/
+// WhatsApp/push here, see AGENTS.md / the 6H1 brief). `message` must never
+// carry phone/e-mail/budget/internalNotes content, same rule as AuditLog —
+// see lib/crm/notification-service.ts.
+// ---------------------------------------------------------------------------
+
+enum NotificationType {
+  NOUVELLE_DEMANDE
+  RELANCE_AUJOURD_HUI
+  RELANCE_EN_RETARD
+  VISITE_A_VENIR
+  VISITE_MODIFIEE
+  VISITE_ANNULEE
+  PROSPECT_ASSIGNE
+}
+
+model Notification {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type    NotificationType
+  title   String
+  message String
+
+  prospectId String?
+  prospect   Prospect? @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+  visitId    String?
+  visit      Visit?    @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  activityId String?
+  activity   Activity? @relation(fields: [activityId], references: [id], onDelete: Cascade)
+
+  isRead Boolean   @default(false)
+  readAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, isRead, createdAt])
 }

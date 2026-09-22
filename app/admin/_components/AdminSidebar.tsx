@@ -6,14 +6,14 @@ import { roleLabels } from "@/lib/auth/roles";
 import type { AuthenticatedUser } from "@/lib/auth/dal";
 import AdminSidebarNav from "./AdminSidebarNav";
 
-export default function AdminSidebar({ user }: { user: AuthenticatedUser }) {
+export default function AdminSidebar({ user, unreadNotifications = 0 }: { user: AuthenticatedUser; unreadNotifications?: number }) {
   return (
     <aside className="sticky top-0 hidden h-screen w-72 shrink-0 flex-col justify-between border-r border-anthracite-100 bg-white px-6 py-8 md:flex">
       <div className="flex flex-col gap-8">
         <Link href="/admin">
           <BrandLockup tagline={false} />
         </Link>
-        <AdminSidebarNav role={user.role} />
+        <AdminSidebarNav role={user.role} unreadNotifications={unreadNotifications} />
       </div>
 
       <div className="flex flex-col gap-4 border-t border-anthracite-100 pt-6">

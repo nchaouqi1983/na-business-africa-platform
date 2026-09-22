@@ -99,6 +99,22 @@ export async function listDemandes(role: Role, userId: string, formOrigin?: stri
   });
 }
 
+/** Minimal Prospect fetch for the "créer une prochaine relance" prompt on /admin/aujourd-hui — no need for the full 360° include. */
+export async function getProspectLiteById(id: string) {
+  return prisma.prospect.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      reference: true,
+      firstName: true,
+      lastName: true,
+      companyName: true,
+      createdById: true,
+      assignedToId: true,
+    },
+  });
+}
+
 export async function getProspectById(id: string) {
   return prisma.prospect.findUnique({
     where: { id },

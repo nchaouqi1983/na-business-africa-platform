@@ -147,3 +147,24 @@ export const activityStatusLabels: Record<ActivityStatusValue, string> = {
   ANNULEE: "Annulée",
 };
 export const activityStatusOptions = activityStatusValues.map((value) => ({ value, label: activityStatusLabels[value] }));
+
+/** Internal notification kinds (phase 6H1) — see lib/crm/notification-service.ts. */
+export const notificationTypeValues = [
+  "NOUVELLE_DEMANDE",
+  "RELANCE_AUJOURD_HUI",
+  "RELANCE_EN_RETARD",
+  "VISITE_A_VENIR",
+  "VISITE_MODIFIEE",
+  "VISITE_ANNULEE",
+  "PROSPECT_ASSIGNE",
+] as const;
+export type NotificationTypeValue = (typeof notificationTypeValues)[number];
+export const notificationTypeLabels: Record<NotificationTypeValue, string> = {
+  NOUVELLE_DEMANDE: "Nouvelle demande",
+  RELANCE_AUJOURD_HUI: "Relance aujourd'hui",
+  RELANCE_EN_RETARD: "Relance en retard",
+  VISITE_A_VENIR: "Visite à venir",
+  VISITE_MODIFIEE: "Visite modifiée",
+  VISITE_ANNULEE: "Visite annulée",
+  PROSPECT_ASSIGNE: "Prospect assigné",
+};
