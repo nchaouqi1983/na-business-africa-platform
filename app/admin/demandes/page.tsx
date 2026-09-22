@@ -1,9 +1,16 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { requireAdminUser } from "@/lib/auth/dal";
 import { listDemandes } from "@/lib/crm/prospect-queries";
 import { canEditProspect, canCreateProspect } from "@/lib/crm/permissions";
 import { setProspectStatus } from "@/lib/crm/prospect-actions";
-import { prospectTypeLabels, prospectStatusLabels, prospectSourceLabels } from "@/lib/crm/enum-labels";
+import {
+  prospectTypeLabels,
+  prospectStatusLabels,
+  prospectSourceLabels,
+  prospectFormOriginLabels,
+  prospectFormOriginOptions,
+} from "@/lib/crm/enum-labels";
 import { formatDateTime } from "@/lib/admin/format";
 import Badge from "@/components/Badge";
 import Button from "@/components/Button";
@@ -17,9 +24,13 @@ function prospectDisplayName(prospect: { kind: string; firstName: string | null;
   return [prospect.firstName, prospect.lastName].filter(Boolean).join(" ") || "Prospect sans nom";
 }
 
-export default async function DemandesPage() {
+export default async function DemandesPage({ searchParams }: PageProps<"/admin/demandes">) {
   const user = await requireAdminUser();
-  const demandes = await listDemandes(user.role, user.id);
+  const sp = await searchParams;
+  const origineParam = sp.origine;
+  const origine = Array.isArray(origineParam) ? (origineParam[0] ?? "") : (origineParam ?? "");
+
+  const demandes = await listDemandes(user.role, user.id, origine || undefined);
 
   return (
     <div className="flex flex-col gap-8">
@@ -38,6 +49,28 @@ export default async function DemandesPage() {
         )}
       </div>
 
+      <form method="get" className="flex flex-wrap items-end gap-3">
+        <label className="flex flex-col gap-1.5 text-sm">
+          <span className="text-xs font-semibold uppercase tracking-wider text-anthracite-500">Origine</span>
+          <select name="origine" defaultValue={origine} className="rounded-xl border border-anthracite-200 px-3 py-2 text-sm outline-none focus:border-gold-500">
+            <option value="">Toutes</option>
+            {prospectFormOriginOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button type="submit" className="rounded-full bg-anthracite-950 px-5 py-2 text-xs font-semibold uppercase tracking-wider text-white hover:bg-anthracite-800">
+          Filtrer
+        </button>
+        {origine && (
+          <Link href="/admin/demandes" className="text-sm text-anthracite-500 hover:text-gold-600">
+            Réinitialiser
+          </Link>
+        )}
+      </form>
+
       {demandes.length === 0 ? (
         <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-anthracite-200 bg-white p-16 text-center">
           <p className="font-display text-lg text-anthracite-900">Aucune demande en attente de qualification.</p>
@@ -51,6 +84,12 @@ export default async function DemandesPage() {
                   <span className="text-xs font-semibold uppercase tracking-wider text-gold-600">{prospect.reference}</span>
                   <Badge tone="outline">{prospectTypeLabels[prospect.type]}</Badge>
                   <Badge tone="gold">{prospectStatusLabels[prospect.status]}</Badge>
+                  {prospect.formOrigin && (
+                    <>
+                      <Badge tone="anthracite">Site web</Badge>
+                      <Badge tone="outline">{prospectFormOriginLabels[prospect.formOrigin]}</Badge>
+                    </>
+                  )}
                 </div>
                 <span className="font-display text-lg font-semibold text-anthracite-950">{prospectDisplayName(prospect)}</span>
                 <span className="text-sm text-anthracite-500">

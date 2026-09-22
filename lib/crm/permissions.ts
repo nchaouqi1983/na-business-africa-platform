@@ -19,7 +19,14 @@ import type { Prisma } from "@/lib/generated/prisma/client";
  * - VIEWER: read-only on rows assignedTo it, no edit rights anywhere.
  */
 
-export type Ownership = { createdById: string; assignedToId: string | null };
+/**
+ * createdById is nullable only on Prospect (a public /contact, /vendre or
+ * /off-market submission has no back-office user behind it — see
+ * lib/crm/public-request-actions.ts). Visit/Activity keep a required
+ * createdById; widening the shared type here just lets a null Prospect row
+ * flow through the same helpers without a mismatch.
+ */
+export type Ownership = { createdById: string | null; assignedToId: string | null };
 
 export function canCreateProspect(role: Role): boolean {
   return role === Role.SUPER_ADMIN || role === Role.ADMIN || role === Role.AGENT;

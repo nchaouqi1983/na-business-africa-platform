@@ -12,6 +12,7 @@ import {
   prospectStatusOptions,
   prospectLanguageLabels,
   prospectSourceLabels,
+  prospectFormOriginLabels,
   interestLevelLabels,
   visitStatusLabels,
   visitTypeLabels,
@@ -85,6 +86,12 @@ export default async function ProspectDetailPage({ params, searchParams }: PageP
           <div className="flex flex-wrap items-center gap-2">
             <Badge tone="outline">{prospectTypeLabels[prospect.type]}</Badge>
             <Badge tone="gold">{prospectStatusLabels[prospect.status]}</Badge>
+            {prospect.formOrigin && (
+              <>
+                <Badge tone="anthracite">Site web</Badge>
+                <Badge tone="outline">{prospectFormOriginLabels[prospect.formOrigin]}</Badge>
+              </>
+            )}
           </div>
         </div>
 
@@ -117,9 +124,22 @@ export default async function ProspectDetailPage({ params, searchParams }: PageP
         <Info label="Quartiers recherchés" value={prospect.searchDistricts.length ? prospect.searchDistricts.join(", ") : "—"} />
         <Info label="Échéance / projet" value={prospect.projectTimeline ?? "—"} />
         <Info label="Agent assigné" value={prospect.assignedTo?.name ?? prospect.assignedTo?.email ?? "Non assigné"} />
-        <Info label="Créé par" value={prospect.createdBy.name ?? prospect.createdBy.email} />
+        <Info
+          label="Créé par"
+          value={prospect.createdBy ? prospect.createdBy.name ?? prospect.createdBy.email : "Formulaire public (site web)"}
+        />
         <Info label="Créé le" value={formatDateTime(prospect.createdAt)} />
       </div>
+
+      {prospect.internalNotes && (
+        <div className="rounded-2xl border border-anthracite-100 bg-white p-6 lg:p-8">
+          <h2 className="font-display text-lg font-semibold text-anthracite-950">Historique de la demande &amp; critères reçus</h2>
+          <p className="mt-1 text-xs text-anthracite-400">
+            Contenu des formulaires publics reçus (et, en cas de doublon téléphone/e-mail, des demandes suivantes fusionnées ici) — jamais écrasé.
+          </p>
+          <p className="mt-4 whitespace-pre-wrap text-sm text-anthracite-700">{prospect.internalNotes}</p>
+        </div>
+      )}
 
       {canEdit && (
         <div className="rounded-2xl border border-anthracite-100 bg-white p-6 lg:p-8">

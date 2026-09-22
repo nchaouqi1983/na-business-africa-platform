@@ -5,6 +5,7 @@ import {
   type ProspectType as DbProspectType,
   type ProspectSource as DbProspectSource,
   type ProspectStatus as DbProspectStatus,
+  type ProspectFormOrigin as DbProspectFormOrigin,
 } from "@/lib/generated/prisma/client";
 import { Role } from "@/lib/generated/prisma/enums";
 import { prospectAccessWhere } from "@/lib/crm/permissions";
@@ -83,11 +84,12 @@ export async function listProspects(role: Role, userId: string, filters: Prospec
   };
 }
 
-/** /admin/demandes: newest, unqualified prospects (statut NOUVEAU or A_QUALIFIER). */
-export async function listDemandes(role: Role, userId: string) {
+/** /admin/demandes: newest, unqualified prospects (statut NOUVEAU or A_QUALIFIER), optionally narrowed to one public form origin. */
+export async function listDemandes(role: Role, userId: string, formOrigin?: string) {
   const where: Prisma.ProspectWhereInput = { status: { in: [...demandeStatusValues] } };
   const accessWhere = prospectAccessWhere(role, userId);
   if (accessWhere) Object.assign(where, accessWhere);
+  if (formOrigin) where.formOrigin = formOrigin as DbProspectFormOrigin;
 
   return prisma.prospect.findMany({
     where,

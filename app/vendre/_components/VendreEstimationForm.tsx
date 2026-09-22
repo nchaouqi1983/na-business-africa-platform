@@ -1,7 +1,9 @@
 "use client";
 
-import { useId, useState, type ChangeEvent, type FormEvent } from "react";
+import { useActionState, useId, useState, type ChangeEvent } from "react";
 import { getCities, propertyTypeLabels, propertyTypeValues } from "@/lib/properties";
+import { submitVendreRequest } from "@/lib/crm/public-request-actions";
+import HoneypotField from "@/components/HoneypotField";
 
 const situations = [
   "Vente immédiate",
@@ -12,22 +14,19 @@ const situations = [
 const inputClass =
   "rounded-lg border border-anthracite-200 px-3 py-2 text-sm text-anthracite-900 focus:outline-none focus:ring-2 focus:ring-gold-500";
 const labelClass = "text-xs font-semibold uppercase tracking-wider text-anthracite-500";
+const errorClass = "text-xs text-red-600";
 
 export default function VendreEstimationForm() {
   const citiesListId = useId();
-  const [submitted, setSubmitted] = useState(false);
+  const [state, formAction, pending] = useActionState(submitVendreRequest, undefined);
   const [priceMode, setPriceMode] = useState<"advice" | "amount">("advice");
   const [photoNames, setPhotoNames] = useState<string[]>([]);
   const cities = getCities();
+  const submitted = state?.success === true;
 
   function handlePhotoChange(event: ChangeEvent<HTMLInputElement>) {
     const files = event.target.files;
     setPhotoNames(files ? Array.from(files).map((file) => file.name) : []);
-  }
-
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setSubmitted(true);
   }
 
   return (
@@ -52,36 +51,88 @@ export default function VendreEstimationForm() {
       <div className="rounded-2xl border border-anthracite-100 bg-white p-6 shadow-sm sm:p-8">
         {submitted ? (
           <div className="flex flex-col items-center gap-3 rounded-xl border border-gold-300 bg-gold-200/30 px-6 py-12 text-center">
-            <p className="font-display text-lg font-semibold text-anthracite-950">Merci pour votre demande</p>
+            <p className="font-display text-lg font-semibold text-anthracite-950">
+              Votre demande a bien été reçue.
+            </p>
             <p className="max-w-sm text-sm leading-relaxed text-anthracite-600">
-              Niama va étudier votre bien personnellement et reviendra vers vous dans les meilleurs délais.
+              Notre équipe vous recontactera rapidement. Niama va étudier votre bien personnellement.
             </p>
             <p className="text-xs font-semibold uppercase tracking-wider text-gold-600">
               Votre demande reste strictement confidentielle.
             </p>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <form action={formAction} className="flex flex-col gap-4">
+            <HoneypotField />
+
+            {state?.error && (
+              <p role="alert" className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
+                {state.error}
+              </p>
+            )}
+
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="flex flex-col gap-1">
                 <span className={labelClass}>Nom complet</span>
-                <input required type="text" name="fullName" autoComplete="name" className={inputClass} />
+                <input
+                  required
+                  type="text"
+                  name="fullName"
+                  autoComplete="name"
+                  aria-describedby={state?.fieldErrors?.fullName ? "vendre-fullName-error" : undefined}
+                  className={inputClass}
+                />
+                {state?.fieldErrors?.fullName && (
+                  <p id="vendre-fullName-error" role="alert" className={errorClass}>
+                    {state.fieldErrors.fullName}
+                  </p>
+                )}
               </label>
               <label className="flex flex-col gap-1">
                 <span className={labelClass}>Téléphone</span>
-                <input required type="tel" name="phone" autoComplete="tel" className={inputClass} />
+                <input
+                  required
+                  type="tel"
+                  name="phone"
+                  autoComplete="tel"
+                  aria-describedby={state?.fieldErrors?.phone ? "vendre-phone-error" : undefined}
+                  className={inputClass}
+                />
+                {state?.fieldErrors?.phone && (
+                  <p id="vendre-phone-error" role="alert" className={errorClass}>
+                    {state.fieldErrors.phone}
+                  </p>
+                )}
               </label>
             </div>
 
             <label className="flex flex-col gap-1">
               <span className={labelClass}>Email</span>
-              <input required type="email" name="email" autoComplete="email" className={inputClass} />
+              <input
+                required
+                type="email"
+                name="email"
+                autoComplete="email"
+                aria-describedby={state?.fieldErrors?.email ? "vendre-email-error" : undefined}
+                className={inputClass}
+              />
+              {state?.fieldErrors?.email && (
+                <p id="vendre-email-error" role="alert" className={errorClass}>
+                  {state.fieldErrors.email}
+                </p>
+              )}
             </label>
 
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="flex flex-col gap-1">
                 <span className={labelClass}>Type de bien</span>
-                <select required name="propertyType" defaultValue="" className={inputClass}>
+                <select
+                  required
+                  name="propertyType"
+                  defaultValue=""
+                  aria-describedby={state?.fieldErrors?.propertyType ? "vendre-propertyType-error" : undefined}
+                  className={inputClass}
+                >
                   <option value="" disabled>
                     Sélectionner
                   </option>
@@ -91,6 +142,11 @@ export default function VendreEstimationForm() {
                     </option>
                   ))}
                 </select>
+                {state?.fieldErrors?.propertyType && (
+                  <p id="vendre-propertyType-error" role="alert" className={errorClass}>
+                    {state.fieldErrors.propertyType}
+                  </p>
+                )}
               </label>
               <label className="flex flex-col gap-1">
                 <span className={labelClass}>Ville</span>
@@ -100,6 +156,7 @@ export default function VendreEstimationForm() {
                   name="city"
                   list={citiesListId}
                   placeholder="Marrakech, Casablanca…"
+                  aria-describedby={state?.fieldErrors?.city ? "vendre-city-error" : undefined}
                   className={inputClass}
                 />
                 <datalist id={citiesListId}>
@@ -107,6 +164,11 @@ export default function VendreEstimationForm() {
                     <option key={city.name} value={city.name} />
                   ))}
                 </datalist>
+                {state?.fieldErrors?.city && (
+                  <p id="vendre-city-error" role="alert" className={errorClass}>
+                    {state.fieldErrors.city}
+                  </p>
+                )}
               </label>
             </div>
 
@@ -205,16 +267,28 @@ export default function VendreEstimationForm() {
             </div>
 
             <label className="flex items-start gap-2 text-xs text-anthracite-500">
-              <input required type="checkbox" name="confidentiality" className="mt-0.5" />
+              <input
+                required
+                type="checkbox"
+                name="confidentiality"
+                aria-describedby={state?.fieldErrors?.confidentiality ? "vendre-confidentiality-error" : undefined}
+                className="mt-0.5"
+              />
               Votre demande et les informations relatives à votre bien sont traitées de manière strictement
               confidentielle.
             </label>
+            {state?.fieldErrors?.confidentiality && (
+              <p id="vendre-confidentiality-error" role="alert" className={errorClass}>
+                {state.fieldErrors.confidentiality}
+              </p>
+            )}
 
             <button
               type="submit"
-              className="mt-1 rounded-full bg-gold-500 px-6 py-3 text-xs font-semibold uppercase tracking-wider text-anthracite-950 transition-colors hover:bg-gold-400"
+              disabled={pending}
+              className="mt-1 rounded-full bg-gold-500 px-6 py-3 text-xs font-semibold uppercase tracking-wider text-anthracite-950 transition-colors hover:bg-gold-400 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Envoyer ma demande d&apos;estimation
+              {pending ? "Envoi en cours…" : "Envoyer ma demande d'estimation"}
             </button>
           </form>
         )}

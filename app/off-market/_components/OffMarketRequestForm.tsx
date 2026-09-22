@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useActionState } from "react";
 import { budgetRanges } from "@/components/SearchBar";
 import { propertyTypeLabels, propertyTypeValues } from "@/lib/properties";
+import { submitOffMarketRequest } from "@/lib/crm/public-request-actions";
+import HoneypotField from "@/components/HoneypotField";
 
 const timelines = [
   "Dès que possible",
@@ -26,13 +28,11 @@ const trustPoints = [
   },
 ];
 
-export default function OffMarketRequestForm() {
-  const [submitted, setSubmitted] = useState(false);
+const errorClass = "text-xs text-red-600";
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setSubmitted(true);
-  }
+export default function OffMarketRequestForm() {
+  const [state, formAction, pending] = useActionState(submitOffMarketRequest, undefined);
+  const submitted = state?.success === true;
 
   return (
     <div id="demande" className="grid gap-10 lg:grid-cols-[1fr_1.3fr] lg:items-start">
@@ -65,16 +65,26 @@ export default function OffMarketRequestForm() {
       <div className="rounded-2xl border border-anthracite-100 bg-white p-6 shadow-sm sm:p-8">
         {submitted ? (
           <div className="flex flex-col items-center gap-3 rounded-xl border border-gold-300 bg-gold-200/30 px-6 py-12 text-center">
-            <p className="font-display text-lg font-semibold text-anthracite-950">Merci pour votre demande</p>
+            <p className="font-display text-lg font-semibold text-anthracite-950">
+              Votre demande a bien été reçue.
+            </p>
             <p className="max-w-sm text-sm leading-relaxed text-anthracite-600">
-              Niama va étudier votre recherche personnellement et reviendra vers vous discrètement.
+              Notre équipe vous recontactera rapidement. Niama va étudier votre recherche personnellement.
             </p>
             <p className="text-xs font-semibold uppercase tracking-wider text-gold-600">
               Votre demande reste strictement confidentielle.
             </p>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <form action={formAction} className="flex flex-col gap-4">
+            <HoneypotField />
+
+            {state?.error && (
+              <p role="alert" className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
+                {state.error}
+              </p>
+            )}
+
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="flex flex-col gap-1">
                 <span className="text-xs font-semibold uppercase tracking-wider text-anthracite-500">
@@ -84,8 +94,14 @@ export default function OffMarketRequestForm() {
                   required
                   type="text"
                   name="fullName"
+                  aria-describedby={state?.fieldErrors?.fullName ? "offmarket-fullName-error" : undefined}
                   className="rounded-lg border border-anthracite-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
                 />
+                {state?.fieldErrors?.fullName && (
+                  <p id="offmarket-fullName-error" role="alert" className={errorClass}>
+                    {state.fieldErrors.fullName}
+                  </p>
+                )}
               </label>
               <label className="flex flex-col gap-1">
                 <span className="text-xs font-semibold uppercase tracking-wider text-anthracite-500">
@@ -95,8 +111,14 @@ export default function OffMarketRequestForm() {
                   required
                   type="tel"
                   name="phone"
+                  aria-describedby={state?.fieldErrors?.phone ? "offmarket-phone-error" : undefined}
                   className="rounded-lg border border-anthracite-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
                 />
+                {state?.fieldErrors?.phone && (
+                  <p id="offmarket-phone-error" role="alert" className={errorClass}>
+                    {state.fieldErrors.phone}
+                  </p>
+                )}
               </label>
             </div>
 
@@ -106,8 +128,26 @@ export default function OffMarketRequestForm() {
                 required
                 type="email"
                 name="email"
+                aria-describedby={state?.fieldErrors?.email ? "offmarket-email-error" : undefined}
                 className="rounded-lg border border-anthracite-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
               />
+              {state?.fieldErrors?.email && (
+                <p id="offmarket-email-error" role="alert" className={errorClass}>
+                  {state.fieldErrors.email}
+                </p>
+              )}
+            </label>
+
+            <label className="flex flex-col gap-1">
+              <span className="text-xs font-semibold uppercase tracking-wider text-anthracite-500">Vous êtes</span>
+              <select
+                name="profile"
+                defaultValue="ACHETEUR"
+                className="rounded-lg border border-anthracite-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
+              >
+                <option value="ACHETEUR">Acheteur</option>
+                <option value="INVESTISSEUR">Investisseur</option>
+              </select>
             </label>
 
             <label className="flex flex-col gap-1">
@@ -182,16 +222,28 @@ export default function OffMarketRequestForm() {
             </label>
 
             <label className="flex items-start gap-2 text-xs text-anthracite-500">
-              <input required type="checkbox" name="confidentiality" className="mt-0.5" />
+              <input
+                required
+                type="checkbox"
+                name="confidentiality"
+                aria-describedby={state?.fieldErrors?.confidentiality ? "offmarket-confidentiality-error" : undefined}
+                className="mt-0.5"
+              />
               J&apos;accepte que mes informations soient traitées de manière confidentielle afin d&apos;étudier ma
               demande.
             </label>
+            {state?.fieldErrors?.confidentiality && (
+              <p id="offmarket-confidentiality-error" role="alert" className={errorClass}>
+                {state.fieldErrors.confidentiality}
+              </p>
+            )}
 
             <button
               type="submit"
-              className="mt-1 rounded-full bg-gold-500 px-6 py-3 text-xs font-semibold uppercase tracking-wider text-anthracite-950 transition-colors hover:bg-gold-400"
+              disabled={pending}
+              className="mt-1 rounded-full bg-gold-500 px-6 py-3 text-xs font-semibold uppercase tracking-wider text-anthracite-950 transition-colors hover:bg-gold-400 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Envoyer ma demande confidentielle
+              {pending ? "Envoi en cours…" : "Envoyer ma demande confidentielle"}
             </button>
             <p className="text-center text-[11px] text-anthracite-400">
               Votre demande reste strictement confidentielle.

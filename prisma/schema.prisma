@@ -1049,6 +1049,17 @@ enum ProspectStatus {
   ARCHIVE
 }
 
+/**
+ * Which public form (phase 6G2) produced this Prospect — null for every
+ * prospect entered by hand in the back office. Purely informational (badge +
+ * filter in /admin/demandes), never read by lib/crm/permissions.ts.
+ */
+enum ProspectFormOrigin {
+  CONTACT
+  VENDRE
+  OFF_MARKET
+}
+
 enum InterestLevel {
   A_SUIVRE
   INTERESSE
@@ -1144,8 +1155,19 @@ model Prospect {
 
   internalNotes String?
 
-  createdById String
-  createdBy   User   @relation("ProspectCreatedBy", fields: [createdById], references: [id])
+  /**
+   * Which public form created this row (phase 6G2) — null for a prospect
+   * entered by hand in the back office. See lib/crm/public-request-actions.ts.
+   */
+  formOrigin ProspectFormOrigin?
+
+  /**
+   * Optional: a public /contact, /vendre or /off-market submission has no
+   * authenticated back-office user behind it. See
+   * lib/crm/public-request-actions.ts, which never sets this field.
+   */
+  createdById String?
+  createdBy   User?   @relation("ProspectCreatedBy", fields: [createdById], references: [id])
 
   assignedToId String?
   assignedTo   User?   @relation("ProspectAssignedTo", fields: [assignedToId], references: [id])
@@ -1162,6 +1184,9 @@ model Prospect {
   @@index([source])
   @@index([assignedToId])
   @@index([createdById])
+  @@index([formOrigin])
+  @@index([phone])
+  @@index([email])
 }
 
 /**

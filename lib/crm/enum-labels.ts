@@ -75,6 +75,16 @@ export const prospectStatusOptions = prospectStatusValues.map((value) => ({ valu
 /** Prospects landing in /admin/demandes — freshly captured, not yet qualified. */
 export const demandeStatusValues = ["NOUVEAU", "A_QUALIFIER"] as const satisfies readonly ProspectStatusValue[];
 
+/** Which public form (phase 6G2) produced a Prospect — null for a back-office manual entry. */
+export const prospectFormOriginValues = ["CONTACT", "VENDRE", "OFF_MARKET"] as const;
+export type ProspectFormOriginValue = (typeof prospectFormOriginValues)[number];
+export const prospectFormOriginLabels: Record<ProspectFormOriginValue, string> = {
+  CONTACT: "Contact",
+  VENDRE: "Vendre",
+  OFF_MARKET: "Off-market",
+};
+export const prospectFormOriginOptions = prospectFormOriginValues.map((value) => ({ value, label: prospectFormOriginLabels[value] }));
+
 export const interestLevelValues = ["A_SUIVRE", "INTERESSE", "FAVORI", "REFUSE"] as const;
 export type InterestLevelValue = (typeof interestLevelValues)[number];
 export const interestLevelLabels: Record<InterestLevelValue, string> = {
