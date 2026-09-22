@@ -30,10 +30,10 @@ model User {
   sessions  Session[]
   auditLogs AuditLog[]
 
-  createdProperties  Property[] @relation("PropertyCreatedBy")
-  assignedProperties Property[] @relation("PropertyAssignedTo")
-  updatedProperties  Property[] @relation("PropertyUpdatedBy")
-  uploadedMedia      PropertyMedia[] @relation("PropertyMediaUploadedBy")
+  createdProperties  Property[]         @relation("PropertyCreatedBy")
+  assignedProperties Property[]         @relation("PropertyAssignedTo")
+  updatedProperties  Property[]         @relation("PropertyUpdatedBy")
+  uploadedMedia      PropertyMedia[]    @relation("PropertyMediaUploadedBy")
   uploadedDocuments  PropertyDocument[] @relation("PropertyDocumentUploadedBy")
 }
 
@@ -262,12 +262,28 @@ model Property {
   documents     PropertyDocument[]
   externalLinks PropertyExternalLink[]
 
+  /**
+   * Optional rattachement à un programme neuf / lot (phase 6E) — jamais
+   * requis, jamais lu par le site public. Un lot peut en principe être
+   * rattaché à un seul bien à la fois mais ce n'est pas imposé au niveau
+   * schéma (voir lib/real-estate-network/property-links-actions.ts).
+   */
+  developmentProgramId String?
+  developmentProgram   DevelopmentProgram? @relation(fields: [developmentProgramId], references: [id])
+  developmentLotId     String?
+  developmentLot       DevelopmentLot?     @relation(fields: [developmentLotId], references: [id])
+
+  owners         PropertyOwner[]
+  intermediaries PropertyIntermediary[]
+
   @@index([city])
   @@index([transaction])
   @@index([propertyType])
   @@index([publicationStatus])
   @@index([visibility])
   @@index([status])
+  @@index([developmentProgramId])
+  @@index([developmentLotId])
 }
 
 /**
@@ -348,7 +364,9 @@ model PropertyMedia {
   width            Int?
   height           Int?
 
-  /** sha256 of the original file — used to reject obvious duplicates per bien. */
+  /**
+   * sha256 of the original file — used to reject obvious duplicates per bien.
+   */
   checksum String
 
   storageKey String
@@ -453,4 +471,227 @@ model PropertyExternalLink {
   updatedAt DateTime @updatedAt
 
   @@index([propertyId, sortOrder])
+}
+
+// ---------------------------------------------------------------------------
+// Real-estate network (phase 6E)
+//
+// Owners, promoters/programs/lots and intermediaries are strictly internal —
+// never read by the public site, never exposed to AGENT/EDITOR/VIEWER (see
+// lib/real-estate-network/permissions.ts, canManageRealEstateNetwork). Every
+// query/action layer must re-check that helper itself; there is no
+// schema-level enforcement.
+//
+// PropertyPrivate.ownerName/ownerPhone/ownerEmail (phase 6B2) are untouched —
+// they keep surfacing as unstructured historical data until a real Owner is
+// linked through PropertyOwner. No automatic migration between the two.
+// ---------------------------------------------------------------------------
+
+enum PartyKind {
+  PHYSIQUE
+  SOCIETE
+}
+
+enum ContactPreference {
+  TELEPHONE
+  EMAIL
+  WHATSAPP
+  COURRIER
+}
+
+enum ProgramStatus {
+  ETUDE
+  COMMERCIALISATION
+  LIVRE
+  SUSPENDU
+}
+
+enum LotStatus {
+  DISPONIBLE
+  OPTIONNE
+  RESERVE
+  VENDU
+}
+
+enum IntermediaryType {
+  APPORTEUR
+  AGENCE_PARTENAIRE
+  COURTIER
+  NOTAIRE
+  AUTRE
+}
+
+enum PropertyOwnerRole {
+  PROPRIETAIRE
+  INDIVISAIRE
+  USUFRUITIER
+  MANDATAIRE
+  AUTRE
+}
+
+enum CommissionType {
+  POURCENTAGE
+  FORFAIT
+}
+
+model Owner {
+  id                String             @id @default(cuid())
+  kind              PartyKind          @default(PHYSIQUE)
+  fullNameOrCompany String
+  cinOrIce          String?
+  phone             String?
+  email             String?
+  address           String?
+  city              String?
+  contactPreference ContactPreference?
+  internalNotes     String?
+  isActive          Boolean            @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  propertyLinks PropertyOwner[]
+
+  @@index([isActive])
+  @@index([city])
+}
+
+model Promoter {
+  id              String  @id @default(cuid())
+  companyName     String
+  mainContactName String?
+  phone           String?
+  email           String?
+  website         String?
+  ice             String?
+  address         String?
+  city            String?
+  internalNotes   String?
+  isActive        Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  programs DevelopmentProgram[]
+
+  @@index([isActive])
+  @@index([city])
+}
+
+model DevelopmentProgram {
+  id         String   @id @default(cuid())
+  promoterId String
+  promoter   Promoter @relation(fields: [promoterId], references: [id])
+
+  name                 String
+  city                 String
+  district             String?
+  address              String?
+  latitude             Float?
+  longitude            Float?
+  internalDescription  String?
+  status               ProgramStatus @default(ETUDE)
+  expectedDeliveryDate DateTime?
+  indicativeLotCount   Int?
+  isActive             Boolean       @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  lots       DevelopmentLot[]
+  properties Property[]
+
+  @@index([promoterId])
+  @@index([isActive])
+  @@index([status])
+}
+
+model DevelopmentLot {
+  id        String             @id @default(cuid())
+  programId String
+  program   DevelopmentProgram @relation(fields: [programId], references: [id])
+
+  reference String
+  lotType   String?
+  typology  String?
+  surface   Float?
+  price     Decimal?  @db.Decimal(14, 2)
+  status    LotStatus @default(DISPONIBLE)
+  floor     String?
+  block     String?
+  extraInfo Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  properties Property[]
+
+  @@unique([programId, reference])
+  @@index([status])
+}
+
+model Intermediary {
+  id            String           @id @default(cuid())
+  kind          PartyKind        @default(PHYSIQUE)
+  nameOrCompany String
+  phone         String?
+  email         String?
+  type          IntermediaryType @default(AUTRE)
+  city          String?
+  internalNotes String?
+  isActive      Boolean          @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  propertyLinks PropertyIntermediary[]
+
+  @@index([isActive])
+  @@index([type])
+}
+
+/**
+ * Many-to-many Property <-> Owner, with per-link ownership metadata.
+ */
+model PropertyOwner {
+  id         String   @id @default(cuid())
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  ownerId    String
+  owner      Owner    @relation(fields: [ownerId], references: [id])
+
+  role          PropertyOwnerRole @default(PROPRIETAIRE)
+  quoteShare    Decimal?          @db.Decimal(5, 2)
+  isMainContact Boolean           @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([propertyId, ownerId])
+  @@index([ownerId])
+}
+
+/**
+ * Many-to-many Property <-> Intermediary. Commission fields are placeholders
+ * for the future financial module (kept optional, never computed here).
+ */
+model PropertyIntermediary {
+  id             String       @id @default(cuid())
+  propertyId     String
+  property       Property     @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  intermediaryId String
+  intermediary   Intermediary @relation(fields: [intermediaryId], references: [id])
+
+  role IntermediaryType?
+  note String?
+
+  commissionType   CommissionType?
+  commissionRate   Decimal?        @db.Decimal(5, 2)
+  commissionAmount Decimal?        @db.Decimal(14, 2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([propertyId, intermediaryId])
+  @@index([intermediaryId])
 }

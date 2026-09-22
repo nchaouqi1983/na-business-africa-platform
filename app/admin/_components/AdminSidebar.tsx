@@ -13,7 +13,7 @@ export default function AdminSidebar({ user }: { user: AuthenticatedUser }) {
         <Link href="/admin">
           <BrandLockup tagline={false} />
         </Link>
-        <AdminSidebarNav />
+        <AdminSidebarNav role={user.role} />
       </div>
 
       <div className="flex flex-col gap-4 border-t border-anthracite-100 pt-6">

@@ -17,6 +17,13 @@ import {
   canViewRestrictedDocuments,
   canManageTags,
 } from "@/lib/property-permissions";
+import { canManageRealEstateNetwork } from "@/lib/real-estate-network/permissions";
+import { listPropertyOwnerLinks, listPropertyIntermediaryLinks, getPropertyDevelopmentLink } from "@/lib/real-estate-network/property-links-queries";
+import { searchActiveOwners } from "@/lib/real-estate-network/owner-queries";
+import { searchActiveIntermediaries } from "@/lib/real-estate-network/intermediary-queries";
+import { listActiveProgramsWithLotsForPicker } from "@/lib/real-estate-network/program-queries";
+import { searchActivePromoters } from "@/lib/real-estate-network/promoter-queries";
+import PropertyRelationsSection from "../_components/PropertyRelationsSection";
 import {
   archiveProperty,
   publishProperty,
@@ -73,14 +80,36 @@ export default async function PropertyDetailPage({
   const canSeePrivate = canViewPrivateData(user.role);
   const canSeeRestrictedDocuments = canViewRestrictedDocuments(user.role);
   const canAssign = canManageTags(user.role);
+  const canManageNetwork = canManageRealEstateNetwork(user.role);
 
-  const [allTags, assignableUsers, privateData, media, documents, links] = await Promise.all([
+  const [
+    allTags,
+    assignableUsers,
+    privateData,
+    media,
+    documents,
+    links,
+    ownerLinks,
+    intermediaryLinks,
+    developmentLink,
+    pickerOwners,
+    pickerIntermediaries,
+    pickerPrograms,
+    pickerPromoters,
+  ] = await Promise.all([
     listActiveTags(),
     canAssign ? listAssignableUsers() : Promise.resolve([]),
     canSeePrivate ? getPropertyPrivateById(id) : Promise.resolve(null),
     canEdit ? listPropertyMedia(id) : Promise.resolve([]),
     canEdit ? listPropertyDocuments(id, canSeeRestrictedDocuments) : Promise.resolve([]),
     canEdit ? listPropertyExternalLinks(id) : Promise.resolve([]),
+    canManageNetwork ? listPropertyOwnerLinks(id) : Promise.resolve([]),
+    canManageNetwork ? listPropertyIntermediaryLinks(id) : Promise.resolve([]),
+    canManageNetwork ? getPropertyDevelopmentLink(id) : Promise.resolve(null),
+    canManageNetwork ? searchActiveOwners() : Promise.resolve([]),
+    canManageNetwork ? searchActiveIntermediaries() : Promise.resolve([]),
+    canManageNetwork ? listActiveProgramsWithLotsForPicker() : Promise.resolve([]),
+    canManageNetwork ? searchActivePromoters() : Promise.resolve([]),
   ]);
 
   const boundUpdate = updatePropertyDossier.bind(null, property.id);
@@ -274,6 +303,65 @@ export default async function PropertyDetailPage({
             />
           </div>
         </div>
+      )}
+
+      {canManageNetwork ? (
+        <PropertyRelationsSection
+          propertyId={property.id}
+          ownerLinks={ownerLinks.map((link) => ({
+            id: link.id,
+            ownerId: link.ownerId,
+            role: link.role,
+            quoteShare: link.quoteShare ? Number(link.quoteShare) : null,
+            isMainContact: link.isMainContact,
+            owner: {
+              id: link.owner.id,
+              fullNameOrCompany: link.owner.fullNameOrCompany,
+              kind: link.owner.kind,
+              city: link.owner.city,
+            },
+          }))}
+          pickerOwners={pickerOwners.map((owner) => ({
+            id: owner.id,
+            fullNameOrCompany: owner.fullNameOrCompany,
+            kind: owner.kind,
+            city: owner.city,
+          }))}
+          intermediaryLinks={intermediaryLinks.map((link) => ({
+            id: link.id,
+            intermediaryId: link.intermediaryId,
+            role: link.role,
+            note: link.note,
+            intermediary: {
+              id: link.intermediary.id,
+              nameOrCompany: link.intermediary.nameOrCompany,
+              type: link.intermediary.type,
+              city: link.intermediary.city,
+            },
+          }))}
+          pickerIntermediaries={pickerIntermediaries.map((item) => ({
+            id: item.id,
+            nameOrCompany: item.nameOrCompany,
+            type: item.type,
+            city: item.city,
+          }))}
+          currentProgramId={developmentLink?.developmentProgramId ?? null}
+          currentLotId={developmentLink?.developmentLotId ?? null}
+          pickerPrograms={pickerPrograms.map((program) => ({
+            id: program.id,
+            name: program.name,
+            promoter: { id: program.promoter.id, companyName: program.promoter.companyName },
+            lots: program.lots,
+          }))}
+          pickerPromoters={pickerPromoters.map((promoter) => ({ id: promoter.id, companyName: promoter.companyName }))}
+          legacyOwnerInfo={
+            privateData
+              ? { ownerName: privateData.ownerName, ownerPhone: privateData.ownerPhone, ownerEmail: privateData.ownerEmail }
+              : null
+          }
+        />
+      ) : (
+        <p className="text-sm text-anthracite-400">Votre rôle ne permet pas d&apos;accéder aux relations internes de ce bien.</p>
       )}
     </div>
   );

@@ -15,6 +15,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
         <AdminMobileNav
           userLabel={user.name ?? user.email}
           roleLabel={roleLabels[user.role]}
+          role={user.role}
           logoutAction={logout}
         />
         <main className="flex-1 px-4 py-8 sm:px-6 lg:px-10 lg:py-10">

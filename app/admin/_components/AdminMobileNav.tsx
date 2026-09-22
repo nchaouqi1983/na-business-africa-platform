@@ -4,15 +4,17 @@ import { useState } from "react";
 import Link from "next/link";
 import BrandLockup from "@/components/Logo";
 import Button from "@/components/Button";
+import type { Role } from "@/lib/auth/roles";
 import AdminSidebarNav from "./AdminSidebarNav";
 
 type AdminMobileNavProps = {
   userLabel: string;
   roleLabel: string;
+  role: Role;
   logoutAction: () => void | Promise<void>;
 };
 
-export default function AdminMobileNav({ userLabel, roleLabel, logoutAction }: AdminMobileNavProps) {
+export default function AdminMobileNav({ userLabel, roleLabel, role, logoutAction }: AdminMobileNavProps) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -34,7 +36,7 @@ export default function AdminMobileNav({ userLabel, roleLabel, logoutAction }: A
 
       {open && (
         <div className="mt-4 flex flex-col gap-4 border-t border-anthracite-100 pt-4">
-          <AdminSidebarNav onNavigate={() => setOpen(false)} />
+          <AdminSidebarNav role={role} onNavigate={() => setOpen(false)} />
           <div className="flex flex-col gap-3 border-t border-anthracite-100 pt-4">
             <div className="flex flex-col">
               <span className="text-sm font-medium text-anthracite-900">{userLabel}</span>

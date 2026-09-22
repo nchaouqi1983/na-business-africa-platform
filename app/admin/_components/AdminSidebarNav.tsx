@@ -2,14 +2,16 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import type { Role } from "@/lib/auth/roles";
 import { adminNavItems } from "./nav-items";
 
-export default function AdminSidebarNav({ onNavigate }: { onNavigate?: () => void }) {
+export default function AdminSidebarNav({ role, onNavigate }: { role: Role; onNavigate?: () => void }) {
   const pathname = usePathname();
+  const visibleItems = adminNavItems.filter((item) => !item.roles || item.roles.includes(role));
 
   return (
     <nav className="flex flex-col gap-1">
-      {adminNavItems.map((item) => {
+      {visibleItems.map((item) => {
         if (item.disabled) {
           return (
             <span

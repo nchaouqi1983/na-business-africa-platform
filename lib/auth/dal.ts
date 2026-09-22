@@ -43,16 +43,24 @@ export const verifySession = cache(async (): Promise<AuthenticatedUser | null> =
  * Use at the top of protected /admin layouts and pages. Redirects to
  * /connexion when there is no valid session, and refuses access when the
  * account's role isn't allowed into the back office.
+ *
+ * Rejections go through /api/session/clear rather than straight to
+ * /connexion so the (now-invalid) session cookie gets cleared. Without that,
+ * a cookie that still decrypts fine (valid JWT signature/expiry) but whose
+ * DB session was deleted/expired/denied keeps looking "optimistically valid"
+ * to proxy.ts, which then bounces /connexion back to /admin — an infinite
+ * redirect loop. Cookie mutation isn't allowed in this Server Component
+ * render, hence the redirect to a Route Handler that can clear it.
  */
 export async function requireAdminUser(): Promise<AuthenticatedUser> {
   const user = await verifySession();
 
   if (!user) {
-    redirect("/connexion");
+    redirect("/api/session/clear");
   }
 
   if (!isAdminAccessible(user.role)) {
-    redirect("/connexion?erreur=role");
+    redirect("/api/session/clear?erreur=role");
   }
 
   return user;
