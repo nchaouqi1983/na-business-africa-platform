@@ -39,6 +39,13 @@ model User {
   createdMandates        Mandate[]         @relation("MandateCreatedBy")
   createdCommissionCases CommissionCase[]  @relation("CommissionCaseCreatedBy")
   commissionShareAsAgent CommissionShare[] @relation("CommissionShareAgent")
+
+  createdProspects   Prospect[] @relation("ProspectCreatedBy")
+  assignedProspects  Prospect[] @relation("ProspectAssignedTo")
+  createdVisits      Visit[]    @relation("VisitCreatedBy")
+  assignedVisits     Visit[]    @relation("VisitAssignedTo")
+  createdActivities  Activity[] @relation("ActivityCreatedBy")
+  assignedActivities Activity[] @relation("ActivityAssignedTo")
 }
 
 model Session {
@@ -282,6 +289,10 @@ model Property {
 
   mandates        Mandate[]
   commissionCases CommissionCase[]
+
+  prospectInterests ProspectPropertyInterest[]
+  visits            Visit[]
+  activities        Activity[]
 
   @@index([city])
   @@index([transaction])
@@ -844,7 +855,7 @@ model CommissionCase {
   status      CommissionCaseStatus      @default(PREVISION)
 
   basis      CommissionBasis
-  baseAmount Decimal @db.Decimal(14, 2)
+  baseAmount Decimal         @db.Decimal(14, 2)
 
   /**
    * Rate is optional (a case can be a flat MONTANT_FIXE with no rate at
@@ -915,7 +926,9 @@ model CommissionShare {
   userId         String?
   user           User?         @relation("CommissionShareAgent", fields: [userId], references: [id])
 
-  /** Only ever set (and only ever meaningful) when beneficiaryType is AUTRE. */
+  /**
+   * Only ever set (and only ever meaningful) when beneficiaryType is AUTRE.
+   */
   freeBeneficiaryName String?
 
   mode  CommissionShareMode
@@ -974,4 +987,278 @@ model CommissionPayment {
   @@index([commissionCaseId])
   @@index([commissionShareId])
   @@index([status])
+}
+
+// ---------------------------------------------------------------------------
+// Operational CRM: prospects, visits and follow-ups (phase 6G1)
+//
+// Manual back-office tracking only — the public /contact, /vendre and
+// /off-market forms are NOT wired to these tables yet (a later phase), and
+// there is no SMS/e-mail/WhatsApp/calendar automation here, only rows an
+// admin/agent enters by hand.
+//
+// Contact details and every free-text note (Prospect.internalNotes,
+// Visit.preVisitNote/prospectFeedback/internalNote, Activity.content) must
+// never be written into AuditLog.metadata — only structural fields (ids,
+// enum values, field names) are logged, same rule as lib/finance/*.
+//
+// AGENT only ever creates/reads/edits a Prospect/Visit/Activity it created
+// or is assignedTo; EDITOR/VIEWER only ever read what is assignedTo them,
+// and only EDITOR may edit a Visit/Activity (never a Prospect) assignedTo
+// it. See lib/crm/permissions.ts — every query/action must call it itself,
+// there is no schema-level enforcement.
+//
+// Nothing here is ever physically deleted once it exists: a Prospect is
+// retired via ProspectStatus.ARCHIVE, a Visit via VisitStatus.ANNULEE, an
+// Activity via ActivityStatus.ANNULEE — never prisma.delete().
+// ---------------------------------------------------------------------------
+
+enum ProspectType {
+  ACHETEUR
+  LOCATAIRE
+  VENDEUR
+  INVESTISSEUR
+  AUTRE
+}
+
+enum ProspectLanguage {
+  FR
+  AR
+  EN
+}
+
+enum ProspectSource {
+  SITE_WEB
+  WHATSAPP
+  TELEPHONE
+  RECOMMANDATION
+  RESEAUX_SOCIAUX
+  PORTAIL
+  AUTRE
+}
+
+enum ProspectStatus {
+  NOUVEAU
+  A_QUALIFIER
+  QUALIFIE
+  VISITE_PLANIFIEE
+  OFFRE
+  NEGOCIATION
+  GAGNE
+  PERDU
+  ARCHIVE
+}
+
+enum InterestLevel {
+  A_SUIVRE
+  INTERESSE
+  FAVORI
+  REFUSE
+}
+
+enum VisitStatus {
+  PLANIFIEE
+  CONFIRMEE
+  REALISEE
+  ANNULEE
+  ABSENT
+}
+
+enum VisitType {
+  PREMIERE_VISITE
+  REVISITE
+  VISITE_PROPRIETAIRE
+  AUTRE
+}
+
+enum PostVisitInterest {
+  AUCUN
+  FAIBLE
+  MOYEN
+  FORT
+  OFFRE_ENVISAGEE
+}
+
+enum ActivityType {
+  APPEL
+  WHATSAPP
+  EMAIL
+  NOTE
+  TACHE
+  RELANCE
+}
+
+enum ActivityStatus {
+  A_FAIRE
+  TERMINEE
+  ANNULEE
+}
+
+/**
+ * Atomic counter for the PRO-YYYY-000001 prospect reference, same pattern as PropertyReferenceCounter.
+ */
+model ProspectReferenceCounter {
+  year Int @id
+  seq  Int @default(0)
+}
+
+/**
+ * Atomic counter for the VIS-YYYY-000001 visit reference, same pattern as PropertyReferenceCounter.
+ */
+model VisitReferenceCounter {
+  year Int @id
+  seq  Int @default(0)
+}
+
+model Prospect {
+  id        String @id @default(cuid())
+  reference String @unique
+
+  type ProspectType
+  kind PartyKind    @default(PHYSIQUE)
+
+  firstName   String?
+  lastName    String?
+  companyName String?
+
+  phone String
+  email String?
+
+  preferredLanguage ProspectLanguage @default(FR)
+  source            ProspectSource   @default(AUTRE)
+  status            ProspectStatus   @default(NOUVEAU)
+
+  searchCities        String[]
+  searchDistricts     String[]
+  searchPropertyTypes PropertyType[]
+  searchTransaction   PropertyTransaction?
+
+  budgetMin Decimal? @db.Decimal(14, 2)
+  budgetMax Decimal? @db.Decimal(14, 2)
+  currency  String   @default("MAD")
+
+  /**
+   * Free-text project timeline ("3 mois", "T1 2027"…) — deliberately not a strict date.
+   */
+  projectTimeline String?
+
+  internalNotes String?
+
+  createdById String
+  createdBy   User   @relation("ProspectCreatedBy", fields: [createdById], references: [id])
+
+  assignedToId String?
+  assignedTo   User?   @relation("ProspectAssignedTo", fields: [assignedToId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  propertyInterests ProspectPropertyInterest[]
+  visits            Visit[]
+  activities        Activity[]
+
+  @@index([status])
+  @@index([type])
+  @@index([source])
+  @@index([assignedToId])
+  @@index([createdById])
+}
+
+/**
+ * Many-to-many Prospect <-> Property, with per-link interest metadata.
+ */
+model ProspectPropertyInterest {
+  id         String   @id @default(cuid())
+  prospectId String
+  prospect   Prospect @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  interestLevel InterestLevel @default(A_SUIVRE)
+  internalNote  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([prospectId, propertyId])
+  @@index([propertyId])
+}
+
+model Visit {
+  id        String @id @default(cuid())
+  reference String @unique
+
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  prospectId String
+  prospect   Prospect @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+
+  assignedToId String?
+  assignedTo   User?   @relation("VisitAssignedTo", fields: [assignedToId], references: [id])
+
+  scheduledStart DateTime
+  scheduledEnd   DateTime?
+
+  status VisitStatus @default(PLANIFIEE)
+  type   VisitType   @default(PREMIERE_VISITE)
+
+  participantsCount Int?
+
+  preVisitNote     String?
+  prospectFeedback String?
+  internalNote     String?
+
+  postVisitInterest PostVisitInterest?
+  nextFollowUpAt    DateTime?
+
+  createdById String
+  createdBy   User   @relation("VisitCreatedBy", fields: [createdById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  activities Activity[]
+
+  @@index([propertyId])
+  @@index([prospectId])
+  @@index([assignedToId])
+  @@index([status])
+  @@index([scheduledStart])
+}
+
+model Activity {
+  id String @id @default(cuid())
+
+  prospectId String
+  prospect   Prospect  @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+  propertyId String?
+  property   Property? @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  visitId    String?
+  visit      Visit?    @relation(fields: [visitId], references: [id], onDelete: SetNull)
+
+  type ActivityType
+
+  title   String
+  content String?
+
+  dueAt       DateTime?
+  completedAt DateTime?
+
+  status ActivityStatus @default(A_FAIRE)
+
+  assignedToId String?
+  assignedTo   User?   @relation("ActivityAssignedTo", fields: [assignedToId], references: [id])
+  createdById  String
+  createdBy    User    @relation("ActivityCreatedBy", fields: [createdById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([prospectId])
+  @@index([propertyId])
+  @@index([visitId])
+  @@index([assignedToId])
+  @@index([status])
+  @@index([dueAt])
+  @@index([type])
 }

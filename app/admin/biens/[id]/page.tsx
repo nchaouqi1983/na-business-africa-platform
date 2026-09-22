@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireAdminUser } from "@/lib/auth/dal";
 import { getPropertyById, getPropertyPrivateById, listAssignableUsers } from "@/lib/admin/property-queries";
@@ -26,6 +27,10 @@ import { searchActivePromoters } from "@/lib/real-estate-network/promoter-querie
 import { canManageFinance } from "@/lib/finance/permissions";
 import { listMandatesForProperty } from "@/lib/finance/mandate-queries";
 import { listCommissionCasesForProperty } from "@/lib/finance/commission-queries";
+import { canViewProspect, canViewVisit } from "@/lib/crm/permissions";
+import { listInterestsForProperty } from "@/lib/crm/prospect-queries";
+import { listVisitsForProperty } from "@/lib/crm/visit-queries";
+import { interestLevelLabels, visitStatusLabels } from "@/lib/crm/enum-labels";
 import PropertyRelationsSection from "../_components/PropertyRelationsSection";
 import MandateCommissionSection from "../_components/MandateCommissionSection";
 import {
@@ -103,6 +108,8 @@ export default async function PropertyDetailPage({
     pickerPromoters,
     propertyMandates,
     propertyCommissionCases,
+    propertyInterests,
+    propertyVisits,
   ] = await Promise.all([
     listActiveTags(),
     canAssign ? listAssignableUsers() : Promise.resolve([]),
@@ -119,7 +126,15 @@ export default async function PropertyDetailPage({
     canManageNetwork ? searchActivePromoters() : Promise.resolve([]),
     canManageFinanceModule ? listMandatesForProperty(id) : Promise.resolve([]),
     canManageFinanceModule ? listCommissionCasesForProperty(id) : Promise.resolve([]),
+    listInterestsForProperty(id),
+    listVisitsForProperty(id),
   ]);
+
+  // Row-level CRM filtering: this bien dossier is shared across roles, but a
+  // prospect/visit only shows here when the viewing user can otherwise see
+  // it (see lib/crm/permissions.ts) — never leak another agent's prospect.
+  const visibleInterests = propertyInterests.filter((interest) => canViewProspect(user.role, user.id, interest.prospect));
+  const visibleVisits = propertyVisits.filter((visit) => canViewVisit(user.role, user.id, visit) && canViewProspect(user.role, user.id, visit.prospect));
 
   const boundUpdate = updatePropertyDossier.bind(null, property.id);
   const boundPrivate = savePropertyPrivateData.bind(null, property.id);
@@ -395,6 +410,46 @@ export default async function PropertyDetailPage({
           pickerOwners={pickerOwners.map((owner) => ({ id: owner.id, label: owner.fullNameOrCompany }))}
         />
       )}
+
+      <div className="rounded-2xl border border-anthracite-100 bg-white p-6 lg:p-8">
+        <h2 className="font-display text-lg font-semibold text-anthracite-950">
+          Prospects intéressés ({visibleInterests.length})
+        </h2>
+        <ul className="mt-4 flex flex-col gap-2">
+          {visibleInterests.map((interest) => (
+            <li key={interest.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-anthracite-100 p-3">
+              <Link href={`/admin/prospects/${interest.prospect.id}`} className="text-sm font-medium text-anthracite-900 hover:text-gold-600">
+                {interest.prospect.companyName ||
+                  [interest.prospect.firstName, interest.prospect.lastName].filter(Boolean).join(" ") ||
+                  interest.prospect.reference}
+              </Link>
+              <Badge tone="outline">{interestLevelLabels[interest.interestLevel]}</Badge>
+            </li>
+          ))}
+          {visibleInterests.length === 0 && <p className="text-sm text-anthracite-400">Aucun prospect intéressé pour le moment.</p>}
+        </ul>
+
+        <h2 className="mt-8 font-display text-lg font-semibold text-anthracite-950">Visites ({visibleVisits.length})</h2>
+        <ul className="mt-4 flex flex-col gap-2">
+          {visibleVisits.map((visit) => (
+            <li key={visit.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-anthracite-100 p-3">
+              <div className="flex flex-col">
+                <span className="text-sm font-medium text-anthracite-900">
+                  {visit.prospect.companyName || [visit.prospect.firstName, visit.prospect.lastName].filter(Boolean).join(" ") || visit.prospect.reference}
+                </span>
+                <span className="text-xs text-anthracite-400">{formatDateTime(visit.scheduledStart)}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge tone="outline">{visitStatusLabels[visit.status]}</Badge>
+                <Link href={`/admin/visites/${visit.id}`} className="text-xs font-medium text-gold-600 hover:text-gold-500">
+                  Voir
+                </Link>
+              </div>
+            </li>
+          ))}
+          {visibleVisits.length === 0 && <p className="text-sm text-anthracite-400">Aucune visite planifiée pour ce bien.</p>}
+        </ul>
+      </div>
     </div>
   );
 }
