@@ -42,7 +42,15 @@ Day-to-day commands:
 | `pnpm db:down` | Stop it |
 | `pnpm db:migrate` | Apply Prisma migrations (`prisma migrate dev`) |
 | `pnpm db:seed` | (Re)create the dev admin account from `ADMIN_EMAIL` / `ADMIN_PASSWORD` |
+| `pnpm db:seed:demo` | Load (or refresh) the fictional `DEMO_NA` demo dataset — idempotent |
+| `pnpm db:clear:demo` | Remove only the `DEMO_NA` dataset (asks for explicit confirmation) |
 | `pnpm dev` | Start the Next.js site |
+
+### Local demo dataset (`DEMO_NA`)
+
+`pnpm db:seed:demo` loads a 100 % fictional dataset (20 biens, owners, promoters, programs, intermediaries, prospects, visits, actions, opportunities, mandates, commissions) for client demos. Every row has a `demona-…` id and a `DEMO_NA` marker, e-mails are on `example.test` and phone numbers follow the unallocated `+212 6 00 00 xx xx` pattern. Existing users, properties and imports are never touched; relative dates (relances today/overdue/upcoming) are refreshed on every run. The admin shows a small "Données de démonstration locales" banner while it is loaded — the public site never does.
+
+The four demo accounts (`*.demo@example.test`) cannot sign in unless `DEMO_USER_PASSWORD` (12+ characters) is set when seeding. Both scripts refuse to run against a non-local `DATABASE_URL`. Pages prerendered by `pnpm build` (home, off-market, villes) only pick up demo data loaded before the build — `pnpm dev` always reflects it.
 
 PostgreSQL is only exposed on `127.0.0.1:5433` (not the default `5432`) to avoid clashing with other local projects.
 

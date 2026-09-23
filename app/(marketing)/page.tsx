@@ -1,20 +1,23 @@
 import type { Metadata } from "next";
 import Image from "next/image";
-import Link from "next/link";
 import Button from "@/components/Button";
+import CityCard from "@/components/CityCard";
+import CollectionTile from "@/components/CollectionTile";
 import SectionTitle from "@/components/SectionTitle";
 import PropertyCard from "@/components/PropertyCard";
 import SearchBar from "@/components/SearchBar";
 import Reveal from "@/components/Reveal";
-import ScrollRail from "@/components/ScrollRail";
-import { cityTaglines, propertyTypeLabels } from "@/lib/properties";
+import { balancedCardClass, mosaicTileClass } from "@/components/collection-layout";
+import { propertyTypeLabels } from "@/lib/properties";
 import { propertyTypeFromDb } from "@/lib/admin/property-enum-maps";
-import { gradientForKey } from "@/lib/public-catalog/gradients";
 import {
   getFeaturedPublicProperties,
   getPublicCityCounts,
   getDistinctPublicPropertyTypes,
+  getPublicCoverMedia,
 } from "@/lib/public-catalog/queries";
+import { publicMediaVariantUrl } from "@/lib/public-catalog/public-urls";
+import { getAgencyPhone } from "@/lib/settings/agency-phone";
 
 export const metadata: Metadata = {
   title: "NA Business Africa — L'immobilier d'exception commence par une relation de confiance",
@@ -30,15 +33,17 @@ const heroStats = [
 ];
 
 export default async function Home() {
-  const [cities, featured, dbTypes] = await Promise.all([
+  const [cities, featured, dbTypes, covers, agencyPhone] = await Promise.all([
     getPublicCityCounts(),
-    getFeaturedPublicProperties(4),
+    getFeaturedPublicProperties(6),
     getDistinctPublicPropertyTypes(),
+    getPublicCoverMedia(),
+    getAgencyPhone(),
   ]);
 
   const categories = dbTypes.map((dbType) => {
     const type = propertyTypeFromDb[dbType];
-    return { type, label: propertyTypeLabels[type], gradient: gradientForKey(dbType) };
+    return { type, label: propertyTypeLabels[type], mediaId: covers.byType[dbType] };
   });
 
   return (
@@ -155,7 +160,7 @@ export default async function Home() {
       </section>
 
       {/* COLLECTIONS / CATEGORIES */}
-      <section className="bg-anthracite-50 py-20 lg:py-28">
+      <section className="bg-ivory-50 py-20 lg:py-28">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
           <Reveal>
             <SectionTitle
@@ -164,31 +169,27 @@ export default async function Home() {
               description="Parcourez notre catalogue par type de bien, du terrain constructible au programme neuf."
             />
           </Reveal>
-          <div className="mt-10 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:auto-rows-[160px] lg:grid-cols-4">
-            {categories.map((category, index) => (
-              <Reveal
-                key={category.type}
-                delay={(index % 4) as 0 | 1 | 2 | 3}
-                className={index === 0 ? "lg:col-span-2 lg:row-span-2" : ""}
-              >
-                <Link
-                  href={`/explorer?type=${encodeURIComponent(category.label)}`}
-                  className={`group relative flex h-40 flex-col justify-end overflow-hidden rounded-2xl bg-gradient-to-br p-5 transition-transform duration-500 hover:-translate-y-1 ${category.gradient} ${
-                    index === 0 ? "lg:h-full" : "lg:h-40"
-                  }`}
+          <div className="mt-10 grid grid-cols-2 gap-3 sm:gap-4 lg:auto-rows-[200px] lg:grid-cols-4">
+            {categories.map((category, index) => {
+              const isFeature = index === 0;
+              return (
+                <Reveal
+                  key={category.type}
+                  delay={(index % 4) as 0 | 1 | 2 | 3}
+                  className={`min-w-0 ${mosaicTileClass(index, categories.length)}`}
                 >
-                  <div className="absolute inset-0 bg-gradient-to-t from-anthracite-950/80 via-anthracite-950/10 to-transparent" />
-                  <div className="relative flex flex-col gap-1">
-                    <span className="font-display text-lg font-semibold text-white">
-                      {category.label}
-                    </span>
-                    <span className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wider text-gold-300 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-                      Explorer →
-                    </span>
-                  </div>
-                </Link>
-              </Reveal>
-            ))}
+                  <CollectionTile
+                    href={`/explorer?type=${encodeURIComponent(category.label)}`}
+                    title={category.label}
+                    image={
+                      category.mediaId ? publicMediaVariantUrl(category.mediaId, "gallery") : undefined
+                    }
+                    sizes={isFeature ? "(min-width: 1024px) 50vw, 100vw" : "(min-width: 1024px) 25vw, 50vw"}
+                    className="h-44 sm:h-56 lg:h-full"
+                  />
+                </Reveal>
+              );
+            })}
           </div>
         </div>
       </section>
@@ -224,7 +225,7 @@ export default async function Home() {
       </section>
 
       {/* BIENS À LA UNE */}
-      <section id="biens" className="mx-auto max-w-7xl scroll-mt-28 px-6 py-20 lg:px-8 lg:py-28">
+      <section id="biens" className="mx-auto w-full max-w-7xl scroll-mt-28 px-6 py-20 lg:px-8 lg:py-28">
         <Reveal>
           <div className="flex flex-col items-start justify-between gap-6 sm:flex-row sm:items-end">
             <SectionTitle
@@ -238,18 +239,18 @@ export default async function Home() {
           </div>
         </Reveal>
         <Reveal delay={1} className="mt-10">
-          <ScrollRail>
-            {featured.map((property) => (
-              <div key={property.id} className="w-[280px] flex-none snap-start sm:w-[320px]">
-                <PropertyCard property={property} />
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {featured.map((property, index) => (
+              <div key={property.id} className={`min-w-0 ${balancedCardClass(index, featured.length)}`}>
+                <PropertyCard property={property} agencyPhone={agencyPhone} />
               </div>
             ))}
-          </ScrollRail>
+          </div>
         </Reveal>
       </section>
 
       {/* VILLES */}
-      <section id="villes" className="scroll-mt-28 border-y border-anthracite-100 bg-anthracite-50 py-20 lg:py-28">
+      <section id="villes" className="scroll-mt-28 border-y border-anthracite-100 bg-ivory-50 py-20 lg:py-28">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
           <Reveal>
             <SectionTitle
@@ -259,30 +260,16 @@ export default async function Home() {
             />
           </Reveal>
           <Reveal delay={1} className="mt-10">
-            <ScrollRail itemWidth={240}>
+            <div className="grid grid-cols-2 gap-3 sm:gap-6 lg:grid-cols-3">
               {cities.map((city) => (
-                <Link
+                <CityCard
                   key={city.name}
-                  href={`/explorer?ville=${encodeURIComponent(city.name)}`}
-                  className="group w-60 flex-none snap-start"
-                >
-                  <div className="relative flex aspect-[3/4] flex-col justify-end overflow-hidden rounded-2xl bg-gradient-to-br from-anthracite-800 via-anthracite-900 to-anthracite-950 p-4 transition-transform duration-500 group-hover:-translate-y-1">
-                    <span className="font-display text-xl font-semibold text-white">
-                      {city.name}
-                    </span>
-                    <span className="text-xs uppercase tracking-wider text-gold-400">
-                      {city.count} bien{city.count > 1 ? "s" : ""}
-                    </span>
-                  </div>
-                  <p className="mt-3 text-xs leading-relaxed text-anthracite-500">
-                    {cityTaglines[city.name] ?? "Une sélection de biens premium vous attend."}
-                  </p>
-                  <span className="mt-1 inline-flex text-xs font-semibold uppercase tracking-wider text-gold-600">
-                    Explorer →
-                  </span>
-                </Link>
+                  name={city.name}
+                  count={city.count}
+                  image={covers.byCity[city.name] ? publicMediaVariantUrl(covers.byCity[city.name], "card") : undefined}
+                />
               ))}
-            </ScrollRail>
+            </div>
           </Reveal>
         </div>
       </section>

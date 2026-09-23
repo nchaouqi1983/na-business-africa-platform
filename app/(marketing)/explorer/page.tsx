@@ -6,6 +6,7 @@ import ExplorerFilterBar from "./_components/ExplorerFilterBar";
 import Pagination from "./_components/Pagination";
 import { parseFilterStateFromSearchParams, getExplorerPage, serializeFilterState } from "@/lib/public-catalog/filters";
 import { searchPublicProperties, getPublicCityCounts, getPublicDistinctDistricts } from "@/lib/public-catalog/queries";
+import { getAgencyPhone } from "@/lib/settings/agency-phone";
 
 export const metadata: Metadata = {
   title: "Explorer les biens | NA Business Africa",
@@ -17,10 +18,11 @@ export default async function ExplorerPage({ searchParams }: PageProps<"/explore
   const filters = parseFilterStateFromSearchParams(resolvedSearchParams);
   const page = getExplorerPage(resolvedSearchParams);
 
-  const [result, cities, districts] = await Promise.all([
+  const [result, cities, districts, agencyPhone] = await Promise.all([
     searchPublicProperties(filters, page),
     getPublicCityCounts(),
     getPublicDistinctDistricts(),
+    getAgencyPhone(),
   ]);
 
   const queryWithoutPage = serializeFilterState(filters);
@@ -60,7 +62,12 @@ export default async function ExplorerPage({ searchParams }: PageProps<"/explore
             <>
               <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
                 {result.items.map((property) => (
-                  <PropertyCard key={property.id} property={property} />
+                  <PropertyCard
+                    key={property.id}
+                    property={property}
+                    agencyPhone={agencyPhone}
+                    sizes="(min-width: 1280px) 300px, (min-width: 640px) 50vw, 100vw"
+                  />
                 ))}
               </div>
               <Pagination page={result.page} pageCount={result.pageCount} queryWithoutPage={queryWithoutPage} />

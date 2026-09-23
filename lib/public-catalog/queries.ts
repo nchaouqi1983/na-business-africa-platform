@@ -331,3 +331,61 @@ export async function getPublicSitemapEntries(): Promise<PublicSitemapEntry[]> {
     orderBy: { updatedAt: "desc" },
   });
 }
+
+export type PublicCoverMedia = {
+  /** Media id keyed by the Prisma `PropertyType` value. */
+  byType: Partial<Record<PublicPropertyRow["propertyType"], string>>;
+  /** Media id keyed by city name, as returned by getPublicCityCounts(). */
+  byCity: Record<string, string>;
+};
+
+/**
+ * One representative photo per category and per city for the public
+ * collection/city tiles — only ever the cover (or first) photo of a
+ * PUBLIC + PUBLIE bien. Returns media ids: callers must turn them into a
+ * public `card`/`gallery` variant URL (publicMediaVariantUrl), never a
+ * master. Featured biens win; a bien already used for one tile is skipped
+ * when another one can illustrate the next, so the same photo doesn't
+ * repeat across a page. Keys with no photo at all are simply absent —
+ * callers render their light editorial fallback. Deduped per request.
+ */
+export const getPublicCoverMedia = cache(async (): Promise<PublicCoverMedia> => {
+  const rows = await prisma.property.findMany({
+    where: { ...PUBLIC_BASE_WHERE, media: { some: { type: "IMAGE" } } },
+    orderBy: [{ isFeatured: "desc" }, { publishedAt: { sort: "desc", nulls: "last" } }, { createdAt: "desc" }],
+    select: {
+      id: true,
+      propertyType: true,
+      city: true,
+      media: {
+        where: { type: "IMAGE" },
+        select: { id: true },
+        orderBy: [{ isCover: "desc" }, { sortOrder: "asc" }],
+        take: 1,
+      },
+    },
+  });
+
+  const used = new Set<string>();
+  function pick(matches: (row: (typeof rows)[number]) => boolean): string | undefined {
+    const candidates = rows.filter((row) => row.media.length > 0 && matches(row));
+    const chosen = candidates.find((row) => !used.has(row.id)) ?? candidates[0];
+    if (!chosen) return undefined;
+    used.add(chosen.id);
+    return chosen.media[0].id;
+  }
+
+  const byType: PublicCoverMedia["byType"] = {};
+  for (const type of new Set(rows.map((row) => row.propertyType))) {
+    const mediaId = pick((row) => row.propertyType === type);
+    if (mediaId) byType[type] = mediaId;
+  }
+
+  const byCity: PublicCoverMedia["byCity"] = {};
+  for (const city of new Set(rows.map((row) => row.city))) {
+    const mediaId = pick((row) => row.city === city);
+    if (mediaId) byCity[city] = mediaId;
+  }
+
+  return { byType, byCity };
+});

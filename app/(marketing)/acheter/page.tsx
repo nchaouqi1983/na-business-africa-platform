@@ -5,7 +5,9 @@ import SectionTitle from "@/components/SectionTitle";
 import PropertyCard from "@/components/PropertyCard";
 import SearchBar from "@/components/SearchBar";
 import Reveal from "@/components/Reveal";
+import { balancedCardClass } from "@/components/collection-layout";
 import { getPublicPropertiesForSale } from "@/lib/public-catalog/queries";
+import { getAgencyPhone } from "@/lib/settings/agency-phone";
 import CategoryGrid from "./_components/CategoryGrid";
 import AcquisitionSteps from "./_components/AcquisitionSteps";
 import CityGrid from "./_components/CityGrid";
@@ -30,7 +32,7 @@ const searchTypes = [
 ];
 
 export default async function AcheterPage() {
-  const selection = await getPublicPropertiesForSale(4);
+  const [selection, agencyPhone] = await Promise.all([getPublicPropertiesForSale(6), getAgencyPhone()]);
 
   return (
     <div className="flex flex-col">
@@ -78,7 +80,7 @@ export default async function AcheterPage() {
       </section>
 
       {/* CATÉGORIES */}
-      <section className="mx-auto max-w-7xl px-6 py-20 lg:px-8 lg:py-28">
+      <section className="mx-auto w-full max-w-7xl px-6 py-20 lg:px-8 lg:py-28">
         <Reveal>
           <SectionTitle
             eyebrow="Catégories"
@@ -108,8 +110,10 @@ export default async function AcheterPage() {
           {selection.length > 0 ? (
             <Reveal delay={1} className="mt-10">
               <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                {selection.map((property) => (
-                  <PropertyCard key={property.id} property={property} />
+                {selection.map((property, index) => (
+                  <div key={property.id} className={`min-w-0 ${balancedCardClass(index, selection.length)}`}>
+                    <PropertyCard property={property} agencyPhone={agencyPhone} />
+                  </div>
                 ))}
               </div>
             </Reveal>
@@ -118,7 +122,7 @@ export default async function AcheterPage() {
       </section>
 
       {/* MÉTHODE NIAMA */}
-      <section className="mx-auto max-w-7xl px-6 py-20 lg:px-8 lg:py-28">
+      <section className="mx-auto w-full max-w-7xl px-6 py-20 lg:px-8 lg:py-28">
         <Reveal>
           <SectionTitle
             eyebrow="Notre méthode"

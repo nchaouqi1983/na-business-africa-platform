@@ -23,6 +23,11 @@
   --color-gold-400: #d9bb61;
   --color-gold-300: #e8d493;
   --color-gold-200: #f1e6c4;
+  --color-gold-100: #f8f1dc;
+
+  --color-ivory-50: #fdfbf7;
+  --color-ivory-100: #f8f4ec;
+  --color-ivory-200: #efe7d8;
 }
 
 @theme inline {
@@ -41,6 +46,18 @@ body {
 ::selection {
   background: var(--color-gold-500);
   color: var(--color-anthracite-950);
+}
+
+/* Discreet architectural motif (arcades + pilasters) for tiles/cards that have
+   no real photo yet — a light editorial fallback, never a dark placeholder. */
+.editorial-pattern {
+  background-color: var(--color-ivory-100);
+  background-image:
+    radial-gradient(circle at 50% 100%, transparent 27px, rgb(200 160 50 / 0.16) 28px, transparent 29px),
+    linear-gradient(90deg, rgb(200 160 50 / 0.12) 1px, transparent 1px),
+    linear-gradient(180deg, var(--color-ivory-50), var(--color-gold-100));
+  background-size: 64px 72px, 64px 72px, 100% 100%;
+  background-position: 0 0, 3px 0, 0 0;
 }
 
 @keyframes scroll-cue {

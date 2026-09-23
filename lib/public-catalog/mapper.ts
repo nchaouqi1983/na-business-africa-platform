@@ -169,7 +169,8 @@ export function toPublicProperty(row: PublicPropertyRow): Property {
     tags: tagSlugs,
 
     media: {
-      coverImage: cover ? publicMediaVariantUrl(cover.id, "large") : undefined,
+      // Only listing cards use the cover: the 768px `card` variant is plenty for them.
+      coverImage: cover ? publicMediaVariantUrl(cover.id, "card") : undefined,
       gallery,
       floorPlans: plans.length > 0 ? plans.map((entry) => publicDocumentUrl(entry.id)) : undefined,
       brochurePdf: brochure ? publicDocumentUrl(brochure.id) : undefined,

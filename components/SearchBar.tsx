@@ -65,7 +65,7 @@ export default function SearchBar({
           : "border border-anthracite-100 bg-white shadow-sm",
       ].join(" ")}
     >
-      <label className="flex flex-1 flex-col gap-1.5">
+      <label className="flex min-w-0 flex-1 flex-col gap-1.5">
         <span
           className={`text-xs font-semibold uppercase tracking-wider ${
             isHero ? "text-anthracite-200" : "text-anthracite-500"
@@ -77,7 +77,7 @@ export default function SearchBar({
           value={filters.city}
           onChange={(event) => setFilters((prev) => ({ ...prev, city: event.target.value }))}
           className={[
-            "rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500",
+            "w-full min-w-0 rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500",
             isHero
               ? "border-white/20 bg-anthracite-900 text-white"
               : "border-anthracite-200 bg-white text-anthracite-900",
@@ -92,7 +92,7 @@ export default function SearchBar({
         </select>
       </label>
 
-      <label className="flex flex-1 flex-col gap-1.5">
+      <label className="flex min-w-0 flex-1 flex-col gap-1.5">
         <span
           className={`text-xs font-semibold uppercase tracking-wider ${
             isHero ? "text-anthracite-200" : "text-anthracite-500"
@@ -104,7 +104,7 @@ export default function SearchBar({
           value={filters.type}
           onChange={(event) => setFilters((prev) => ({ ...prev, type: event.target.value }))}
           className={[
-            "rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500",
+            "w-full min-w-0 rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500",
             isHero
               ? "border-white/20 bg-anthracite-900 text-white"
               : "border-anthracite-200 bg-white text-anthracite-900",
@@ -119,7 +119,7 @@ export default function SearchBar({
         </select>
       </label>
 
-      <label className="flex flex-1 flex-col gap-1.5">
+      <label className="flex min-w-0 flex-1 flex-col gap-1.5">
         <span
           className={`text-xs font-semibold uppercase tracking-wider ${
             isHero ? "text-anthracite-200" : "text-anthracite-500"
@@ -131,7 +131,7 @@ export default function SearchBar({
           value={filters.budget}
           onChange={(event) => setFilters((prev) => ({ ...prev, budget: event.target.value }))}
           className={[
-            "rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500",
+            "w-full min-w-0 rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500",
             isHero
               ? "border-white/20 bg-anthracite-900 text-white"
               : "border-anthracite-200 bg-white text-anthracite-900",
@@ -147,7 +147,7 @@ export default function SearchBar({
 
       <button
         type="submit"
-        className="rounded-full bg-gold-500 px-6 py-2.5 text-xs font-semibold uppercase tracking-wider text-anthracite-950 transition-colors hover:bg-gold-400"
+        className="shrink-0 whitespace-nowrap rounded-full bg-gold-500 px-6 py-2.5 text-xs font-semibold uppercase tracking-wider text-anthracite-950 transition-colors hover:bg-gold-400"
       >
         Rechercher
       </button>

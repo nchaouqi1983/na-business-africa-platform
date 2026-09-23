@@ -19,13 +19,17 @@ enum Role {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  passwordHash String
-  name         String?
-  role         Role     @default(VIEWER)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id            String    @id @default(cuid())
+  email         String    @unique
+  passwordHash  String
+  name          String?
+  role          Role      @default(VIEWER)
+  /// Soft deactivation only — users are never physically deleted. An
+  /// inactive account can't sign in and its sessions are revoked.
+  isActive      Boolean   @default(true)
+  deactivatedAt DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   sessions  Session[]
   auditLogs AuditLog[]
@@ -78,6 +82,29 @@ model AuditLog {
 
   @@index([userId])
   @@index([entity, entityId])
+}
+
+/// Singleton (id is always "default") holding the agency's own identity and
+/// defaults, edited from /admin/parametres by SUPER_ADMIN/ADMIN only.
+model OrganizationSettings {
+  id              String   @id @default("default")
+  agencyName      String   @default("NA Business Africa")
+  tagline         String?
+  email           String?
+  phone           String?
+  whatsapp        String?
+  address         String?
+  city            String?
+  website         String?
+  instagramUrl    String?
+  facebookUrl     String?
+  linkedinUrl     String?
+  defaultLanguage String   @default("fr")
+  timezone        String   @default("Africa/Casablanca")
+  defaultCurrency String   @default("MAD")
+  updatedById     String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
 
 // ---------------------------------------------------------------------------

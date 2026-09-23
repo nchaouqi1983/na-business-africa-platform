@@ -42,6 +42,15 @@ export async function login(_prevState: LoginState, formData: FormData): Promise
     return genericError;
   }
 
+  // Checked only after the password matched, so the message never reveals
+  // whether an arbitrary e-mail has a (disabled) account.
+  if (!user.isActive) {
+    await prisma.auditLog.create({
+      data: { userId: user.id, action: "LOGIN_DENIED_INACTIVE", entity: "User", entityId: user.id },
+    });
+    return { error: "Ce compte est désactivé. Contactez un administrateur." };
+  }
+
   if (!isAdminAccessible(user.role)) {
     await prisma.auditLog.create({
       data: { userId: user.id, action: "LOGIN_DENIED_ROLE", entity: "User", entityId: user.id },

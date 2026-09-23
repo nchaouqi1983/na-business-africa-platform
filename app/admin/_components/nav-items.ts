@@ -81,6 +81,6 @@ export const adminNavGroups: AdminNavGroup[] = [
   {
     id: "administration",
     label: "Administration",
-    items: [{ label: "Paramètres", href: "#parametres", icon: "settings", disabled: true }],
+    items: [{ label: "Paramètres", href: "/admin/parametres", icon: "settings" }],
   },
 ];

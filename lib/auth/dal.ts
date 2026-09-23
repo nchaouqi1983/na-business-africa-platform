@@ -27,7 +27,9 @@ export const verifySession = cache(async (): Promise<AuthenticatedUser | null> =
     include: { user: true },
   });
 
-  if (!session || session.expiresAt < new Date()) {
+  // A deactivated account loses access immediately, even if one of its
+  // sessions somehow survived the revocation done on deactivation.
+  if (!session || session.expiresAt < new Date() || !session.user.isActive) {
     return null;
   }
 

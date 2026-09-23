@@ -1,12 +1,13 @@
 import Reveal from "@/components/Reveal";
 import type { Property } from "@/lib/properties";
+import { getAgencyPhone } from "@/lib/settings/agency-phone";
 import OffMarketPropertyCard from "./OffMarketPropertyCard";
 
 type OffMarketSelectionProps = {
   properties: Property[];
 };
 
-export default function OffMarketSelection({ properties }: OffMarketSelectionProps) {
+export default async function OffMarketSelection({ properties }: OffMarketSelectionProps) {
   if (properties.length === 0) {
     return (
       <Reveal className="flex flex-col items-center gap-5 rounded-2xl border border-dashed border-anthracite-200 bg-anthracite-50 px-6 py-20 text-center">
@@ -29,11 +30,13 @@ export default function OffMarketSelection({ properties }: OffMarketSelectionPro
     );
   }
 
+  const agencyPhone = await getAgencyPhone();
+
   return (
     <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
       {properties.map((property, index) => (
-        <Reveal key={property.id} delay={(index % 4) as 0 | 1 | 2 | 3}>
-          <OffMarketPropertyCard property={property} />
+        <Reveal key={property.id} delay={(index % 4) as 0 | 1 | 2 | 3} className="min-w-0">
+          <OffMarketPropertyCard property={property} agencyPhone={agencyPhone} />
         </Reveal>
       ))}
     </div>
