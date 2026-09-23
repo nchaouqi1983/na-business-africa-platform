@@ -36,3 +36,18 @@ export async function generateNextVisitReference(): Promise<string> {
   const seq = rows[0].seq;
   return `VIS-${year}-${String(seq).padStart(6, "0")}`;
 }
+
+/** Same pattern as generateNextProspectReference, for OPP-YYYY-000001 opportunity references. */
+export async function generateNextOpportunityReference(): Promise<string> {
+  const year = new Date().getFullYear();
+
+  const rows = await prisma.$queryRaw<{ seq: number }[]>`
+    INSERT INTO "OpportunityReferenceCounter" ("year", "seq")
+    VALUES (${year}, 1)
+    ON CONFLICT ("year") DO UPDATE SET "seq" = "OpportunityReferenceCounter"."seq" + 1
+    RETURNING "seq"
+  `;
+
+  const seq = rows[0].seq;
+  return `OPP-${year}-${String(seq).padStart(6, "0")}`;
+}

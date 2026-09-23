@@ -49,6 +49,10 @@ model User {
 
   notifications Notification[]
 
+  createdOpportunities    Opportunity[]             @relation("OpportunityCreatedBy")
+  assignedOpportunities   Opportunity[]             @relation("OpportunityAssignedTo")
+  opportunityStageChanges OpportunityStageHistory[] @relation("OpportunityStageChangedBy")
+
   createdImportBatches PropertyImportBatch[] @relation("PropertyImportBatchCreatedBy")
 }
 
@@ -164,13 +168,15 @@ enum Orientation {
   SUD_OUEST  @map("sud-ouest")
 }
 
-/** Mirrors lib/property-schema.ts's Availability — added in phase 6J2 for the extended CSV import. */
+/**
+ * Mirrors lib/property-schema.ts's Availability — added in phase 6J2 for the extended CSV import.
+ */
 enum PropertyAvailability {
   IMMEDIATE
-  SOUS_1_MOIS     @map("sous-1-mois")
-  SOUS_3_MOIS     @map("sous-3-mois")
-  SOUS_6_MOIS     @map("sous-6-mois")
-  A_LA_LIVRAISON  @map("a-la-livraison")
+  SOUS_1_MOIS    @map("sous-1-mois")
+  SOUS_3_MOIS    @map("sous-3-mois")
+  SOUS_6_MOIS    @map("sous-6-mois")
+  A_LA_LIVRAISON @map("a-la-livraison")
 }
 
 enum TagCategory {
@@ -240,13 +246,17 @@ model Property {
   furnished    FurnishedState?
   condition    PropertyCondition?
   orientation  Orientation?
-  /** Mirrors lib/property-schema.ts's Availability — added in phase 6J2 for the extended CSV import; not yet surfaced in the manual dossier form. */
+  /**
+   * Mirrors lib/property-schema.ts's Availability — added in phase 6J2 for the extended CSV import; not yet surfaced in the manual dossier form.
+   */
   availability PropertyAvailability?
 
   isFeatured          Boolean @default(false)
   isGoodDeal          Boolean @default(false)
   isCoupDeCoeur       Boolean @default(false)
-  /** Mirrors lib/property-schema.ts's PropertyVisibility.isExclusive — added in phase 6J2, same reasoning as `availability` above. */
+  /**
+   * Mirrors lib/property-schema.ts's PropertyVisibility.isExclusive — added in phase 6J2, same reasoning as `availability` above.
+   */
   isExclusive         Boolean @default(false)
   isCreditEligible    Boolean @default(false)
   isMourabahaEligible Boolean @default(false)
@@ -322,7 +332,9 @@ model Property {
   prospectInterests ProspectPropertyInterest[]
   visits            Visit[]
   activities        Activity[]
+  opportunities     Opportunity[]
 
+  @@unique([importSource, sourceExternalId])
   @@index([city])
   @@index([transaction])
   @@index([propertyType])
@@ -331,7 +343,6 @@ model Property {
   @@index([status])
   @@index([developmentProgramId])
   @@index([developmentLotId])
-  @@unique([importSource, sourceExternalId])
 }
 
 /**
@@ -881,6 +892,14 @@ model CommissionCase {
   mandateId  String?
   mandate    Mandate? @relation(fields: [mandateId], references: [id])
 
+  /**
+   * Optional link to the commercial Opportunity this dossier settles (phase
+   * 6L). Always set explicitly by an admin — winning an Opportunity never
+   * creates or links a CommissionCase on its own.
+   */
+  opportunityId String?
+  opportunity   Opportunity? @relation(fields: [opportunityId], references: [id], onDelete: SetNull)
+
   transaction CommissionTransactionType
   status      CommissionCaseStatus      @default(PREVISION)
 
@@ -916,6 +935,7 @@ model CommissionCase {
 
   @@index([propertyId])
   @@index([mandateId])
+  @@index([opportunityId])
   @@index([status])
   @@index([transaction])
 }
@@ -1209,6 +1229,7 @@ model Prospect {
   visits            Visit[]
   activities        Activity[]
   notifications     Notification[]
+  opportunities     Opportunity[]
 
   @@index([status])
   @@index([type])
@@ -1267,6 +1288,12 @@ model Visit {
   postVisitInterest PostVisitInterest?
   nextFollowUpAt    DateTime?
 
+  /**
+   * Optional Opportunity this visit belongs to (phase 6L) — always the same prospect, checked at the action layer.
+   */
+  opportunityId String?
+  opportunity   Opportunity? @relation(fields: [opportunityId], references: [id], onDelete: SetNull)
+
   createdById String
   createdBy   User   @relation("VisitCreatedBy", fields: [createdById], references: [id])
 
@@ -1279,6 +1306,7 @@ model Visit {
   @@index([propertyId])
   @@index([prospectId])
   @@index([assignedToId])
+  @@index([opportunityId])
   @@index([status])
   @@index([scheduledStart])
 }
@@ -1286,12 +1314,17 @@ model Visit {
 model Activity {
   id String @id @default(cuid())
 
-  prospectId String
-  prospect   Prospect  @relation(fields: [prospectId], references: [id], onDelete: Cascade)
-  propertyId String?
-  property   Property? @relation(fields: [propertyId], references: [id], onDelete: SetNull)
-  visitId    String?
-  visit      Visit?    @relation(fields: [visitId], references: [id], onDelete: SetNull)
+  prospectId    String
+  prospect      Prospect     @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+  propertyId    String?
+  property      Property?    @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  visitId       String?
+  visit         Visit?       @relation(fields: [visitId], references: [id], onDelete: SetNull)
+  /**
+   * Optional Opportunity this action belongs to (phase 6L) — always the same prospect, checked at the action layer.
+   */
+  opportunityId String?
+  opportunity   Opportunity? @relation(fields: [opportunityId], references: [id], onDelete: SetNull)
 
   type ActivityType
 
@@ -1316,6 +1349,7 @@ model Activity {
   @@index([prospectId])
   @@index([propertyId])
   @@index([visitId])
+  @@index([opportunityId])
   @@index([assignedToId])
   @@index([status])
   @@index([dueAt])
@@ -1340,6 +1374,10 @@ enum NotificationType {
   VISITE_MODIFIEE
   VISITE_ANNULEE
   PROSPECT_ASSIGNE
+  OPPORTUNITE_ASSIGNEE
+  OPPORTUNITE_STADE
+  OPPORTUNITE_CLOTURE_PROCHE
+  OPPORTUNITE_SANS_ACTIVITE
 }
 
 model Notification {
@@ -1351,12 +1389,14 @@ model Notification {
   title   String
   message String
 
-  prospectId String?
-  prospect   Prospect? @relation(fields: [prospectId], references: [id], onDelete: Cascade)
-  visitId    String?
-  visit      Visit?    @relation(fields: [visitId], references: [id], onDelete: Cascade)
-  activityId String?
-  activity   Activity? @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  prospectId    String?
+  prospect      Prospect?    @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+  visitId       String?
+  visit         Visit?       @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  activityId    String?
+  activity      Activity?    @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  opportunityId String?
+  opportunity   Opportunity? @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
 
   isRead Boolean   @default(false)
   readAt DateTime?
@@ -1364,6 +1404,150 @@ model Notification {
   createdAt DateTime @default(now())
 
   @@index([userId, isRead, createdAt])
+  @@index([opportunityId])
+}
+
+// ---------------------------------------------------------------------------
+// Commercial opportunities & pipeline (phase 6L)
+//
+// One Opportunity = one potential deal for one Prospect (and, from the VISITE
+// stage onward, one Property). Same ownership model as the rest of the CRM
+// (createdById/assignedToId, see lib/crm/opportunity-permissions.ts), same
+// "nothing is ever physically deleted" rule: a dead deal is moved to PERDUE.
+//
+// Financial rule: `estimatedAmount`/`finalAmount` are DEAL amounts (sale price
+// or rent), never agency revenue. "Volume pipeline" and "Prévisionnel
+// pondéré" are derived from them only. Commissions prévues/encaissées always
+// come from CommissionCase/CommissionPayment (optionally linked through
+// CommissionCase.opportunityId) — never computed from an Opportunity. Winning
+// an Opportunity never creates a CommissionCase automatically.
+//
+// AuditLog.metadata for this module carries ids, stages and field NAMES only —
+// never amounts, probability, internal notes or loss details.
+// ---------------------------------------------------------------------------
+
+enum OpportunityStage {
+  NOUVELLE
+  QUALIFICATION
+  MATCHING
+  VISITE
+  OFFRE
+  NEGOCIATION
+  RESERVATION
+  COMPROMIS
+  FINANCEMENT
+  ACTE
+  GAGNEE
+  PERDUE
+}
+
+enum OpportunityLossReason {
+  PRIX
+  FINANCEMENT
+  BIEN_INDISPONIBLE
+  CONCURRENT
+  SANS_REPONSE
+  AUTRE
+}
+
+/**
+ * Atomic counter for the OPP-YYYY-000001 opportunity reference, same pattern as PropertyReferenceCounter.
+ */
+model OpportunityReferenceCounter {
+  year Int @id
+  seq  Int @default(0)
+}
+
+model Opportunity {
+  id        String @id @default(cuid())
+  reference String @unique
+
+  prospectId String
+  prospect   Prospect  @relation(fields: [prospectId], references: [id])
+  /**
+   * Optional while NOUVELLE/QUALIFICATION/MATCHING (or PERDUE); required from VISITE onward — enforced in lib/crm/opportunity-rules.ts.
+   */
+  propertyId String?
+  property   Property? @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+
+  transaction PropertyTransaction
+  title       String
+
+  stage OpportunityStage @default(NOUVELLE)
+
+  /**
+   * Deal amount (price / rent) — never agency revenue.
+   */
+  estimatedAmount Decimal? @db.Decimal(14, 2)
+  /**
+   * Deal amount actually agreed — required to move to GAGNEE.
+   */
+  finalAmount     Decimal? @db.Decimal(14, 2)
+  currency        String   @default("MAD")
+
+  /**
+   * 0–100. Reset to the stage default on every stage change; only SUPER_ADMIN/ADMIN may override it afterwards (probabilityIsManual).
+   */
+  probability         Int     @default(5)
+  probabilityIsManual Boolean @default(false)
+
+  expectedCloseDate DateTime?
+  /**
+   * Set when the opportunity reaches GAGNEE (actual closing date, entered by the user) or PERDUE; cleared on reopen.
+   */
+  closedAt          DateTime?
+
+  lossReason OpportunityLossReason?
+  lossNote   String?
+
+  internalNote String?
+
+  assignedToId String?
+  assignedTo   User?   @relation("OpportunityAssignedTo", fields: [assignedToId], references: [id])
+  createdById  String
+  createdBy    User    @relation("OpportunityCreatedBy", fields: [createdById], references: [id])
+
+  /**
+   * Bumped on creation, stage change, edit and every linked activity/visit write — feeds the "sans activité depuis 7 jours" signal.
+   */
+  lastActivityAt DateTime @default(now())
+  stageChangedAt DateTime @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  activities      Activity[]
+  visits          Visit[]
+  commissionCases CommissionCase[]
+  stageHistory    OpportunityStageHistory[]
+  notifications   Notification[]
+
+  @@index([prospectId])
+  @@index([propertyId])
+  @@index([stage])
+  @@index([assignedToId])
+  @@index([createdById])
+  @@index([expectedCloseDate])
+  @@index([lastActivityAt])
+}
+
+/**
+ * Append-only stage journal (phase 6L) — one row per stage transition, including the initial stage.
+ */
+model OpportunityStageHistory {
+  id            String      @id @default(cuid())
+  opportunityId String
+  opportunity   Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+
+  fromStage OpportunityStage?
+  toStage   OpportunityStage
+
+  changedById String
+  changedBy   User   @relation("OpportunityStageChangedBy", fields: [changedById], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([opportunityId, createdAt])
 }
 
 // ---------------------------------------------------------------------------
@@ -1426,7 +1610,9 @@ model PropertyImportBatch {
   imagesDownloadedCount Int @default(0)
   imagesRejectedCount   Int @default(0)
 
-  /** Column headers present in the uploaded file but outside the known CSV contract — tolerated, never read, just reported (phase 6J2). */
+  /**
+   * Column headers present in the uploaded file but outside the known CSV contract — tolerated, never read, just reported (phase 6J2).
+   */
   ignoredColumns Json?
 
   createdById String
@@ -1450,15 +1636,21 @@ model PropertyImportRow {
 
   lineNumber Int
 
-  /** Raw CSV columns for this line, as submitted — public catalogue fields only in this V1 template. */
+  /**
+   * Raw CSV columns for this line, as submitted — public catalogue fields only in this V1 template.
+   */
   sourceData Json
 
   status ImportRowStatus @default(ERREUR)
 
-  /** Non-sensitive, human-readable validation/import messages — never owner/private data (this template has none anyway). */
+  /**
+   * Non-sensitive, human-readable validation/import messages — never owner/private data (this template has none anyway).
+   */
   errors Json?
 
-  /** Per-image_urls outcome messages (rejections), filled during step B — phase 6J2. Never blocks the row/bien (see lib/admin/import-image-fetch.ts). */
+  /**
+   * Per-image_urls outcome messages (rejections), filled during step B — phase 6J2. Never blocks the row/bien (see lib/admin/import-image-fetch.ts).
+   */
   imageErrors         Json?
   imagesImportedCount Int   @default(0)
 

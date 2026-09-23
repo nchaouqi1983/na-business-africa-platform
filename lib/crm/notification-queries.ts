@@ -13,6 +13,7 @@ const notificationListInclude = {
   prospect: { select: { id: true, reference: true } },
   visit: { select: { id: true, reference: true } },
   activity: { select: { id: true } },
+  opportunity: { select: { id: true, reference: true } },
 } as const;
 
 export async function listNotifications(userId: string) {

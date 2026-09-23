@@ -4,7 +4,10 @@ import { requireAdminUser } from "@/lib/auth/dal";
 import { getPropertyKpis } from "@/lib/admin/property-queries";
 import { refreshOperationalNotifications } from "@/lib/crm/notification-service";
 import { getOperationalSnapshot, buildPriorityActions, getMyOverdueActivities } from "@/lib/crm/operational-queries";
-import { formatDateTime } from "@/lib/admin/format";
+import { getPipelineSnapshot, getCommissionTotals } from "@/lib/crm/opportunity-queries";
+import { opportunityStageLabels, OPPORTUNITY_INACTIVITY_DAYS } from "@/lib/crm/opportunity-rules";
+import { canManageFinance } from "@/lib/finance/permissions";
+import { formatDateTime, madAmount } from "@/lib/admin/format";
 import Button from "@/components/Button";
 
 export const metadata: Metadata = {
@@ -21,6 +24,7 @@ const quickLinks: QuickLink[] = [
   { label: "Voir les demandes", href: "/admin/demandes" },
   { label: "Planifier une visite", href: "/admin/visites/nouveau" },
   { label: "Voir les actions / relances", href: "/admin/actions" },
+  { label: "Voir le pipeline", href: "/admin/opportunites" },
   { label: "Créer un mandat", href: "/admin/mandats/nouveau", adminOnly: true },
   { label: "Voir les commissions", href: "/admin/commissions", adminOnly: true },
 ];
@@ -43,10 +47,13 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
 
   await refreshOperationalNotifications();
 
-  const [kpis, snapshot, myOverdueActivities] = await Promise.all([
+  const canSeeCommissions = canManageFinance(user.role);
+  const [kpis, snapshot, myOverdueActivities, pipeline, commissionTotals] = await Promise.all([
     getPropertyKpis(),
     getOperationalSnapshot(user.role, user.id, scope),
     getMyOverdueActivities(user.id),
+    getPipelineSnapshot(user.role, user.id, scope),
+    canSeeCommissions ? getCommissionTotals() : Promise.resolve(null),
   ]);
 
   const priorityActions = buildPriorityActions(snapshot);
@@ -147,6 +154,53 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
             ))}
           </ul>
         )}
+      </div>
+
+      <div className="rounded-2xl border border-anthracite-100 bg-white p-6">
+        <div className="flex items-center justify-between gap-4">
+          <h2 className="font-display text-lg font-semibold text-anthracite-950">Pipeline commercial</h2>
+          <Link href="/admin/opportunites" className="text-xs font-medium text-gold-600 hover:text-gold-500">
+            Ouvrir le pipeline
+          </Link>
+        </div>
+        <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+          <PipelineTile label="Opportunités ouvertes" value={String(pipeline.openCount)} href="/admin/opportunites?stade=OUVERTES" />
+          <PipelineTile label="Volume pipeline" value={madAmount(pipeline.pipelineVolume)} hint="Σ montants estimés (ouvertes)" />
+          <PipelineTile label="Prévisionnel pondéré" value={madAmount(pipeline.weightedForecast)} hint="Σ montant × probabilité" />
+          <PipelineTile label="À clôturer ce mois" value={String(pipeline.closingThisMonthCount)} />
+          <PipelineTile label={`Sans activité depuis ${OPPORTUNITY_INACTIVITY_DAYS} j`} value={String(pipeline.dormantCount)} />
+        </div>
+        {commissionTotals && (
+          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <PipelineTile label="Commissions prévues" value={madAmount(commissionTotals.commissionsPrevues)} hint="Dossiers de commission non annulés" href="/admin/commissions" />
+            <PipelineTile
+              label="Commissions encaissées"
+              value={madAmount(commissionTotals.commissionsEncaissees)}
+              hint="Chiffre d'affaires encaissé : paiements de commissions reçus"
+              href="/admin/commissions"
+            />
+          </div>
+        )}
+        <div className="mt-6 grid gap-6 lg:grid-cols-2">
+          <OpportunityShortList
+            title="À clôturer ce mois"
+            empty="Aucune clôture estimée ce mois-ci."
+            items={pipeline.closingThisMonth.map((opportunity) => ({
+              id: opportunity.id,
+              title: opportunity.title,
+              sublabel: `${opportunity.reference} · ${opportunityStageLabels[opportunity.stage]}${opportunity.expectedCloseDate ? ` · ${formatDateTime(opportunity.expectedCloseDate)}` : ""}`,
+            }))}
+          />
+          <OpportunityShortList
+            title={`Sans activité depuis ${OPPORTUNITY_INACTIVITY_DAYS} jours`}
+            empty="Toutes les opportunités ouvertes sont suivies."
+            items={pipeline.dormant.map((opportunity) => ({
+              id: opportunity.id,
+              title: opportunity.title,
+              sublabel: `${opportunity.reference} · dernière activité ${formatDateTime(opportunity.lastActivityAt)}`,
+            }))}
+          />
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -264,6 +318,48 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
             ))}
         </div>
       </div>
+    </div>
+  );
+}
+
+function PipelineTile({ label, value, hint, href }: { label: string; value: string; hint?: string; href?: string }) {
+  const content = (
+    <>
+      <span className="text-sm text-anthracite-500">{label}</span>
+      <span className="font-display text-2xl font-semibold text-anthracite-950">{value}</span>
+      {hint && <span className="text-[11px] text-anthracite-400">{hint}</span>}
+    </>
+  );
+  return href ? (
+    <Link href={href} className="flex flex-col gap-1 rounded-xl border border-anthracite-100 p-4 transition-colors hover:border-gold-400">
+      {content}
+    </Link>
+  ) : (
+    <div className="flex flex-col gap-1 rounded-xl border border-anthracite-100 p-4">{content}</div>
+  );
+}
+
+function OpportunityShortList({ title, empty, items }: { title: string; empty: string; items: { id: string; title: string; sublabel: string }[] }) {
+  return (
+    <div>
+      <h3 className="text-xs font-semibold uppercase tracking-wider text-anthracite-500">{title}</h3>
+      {items.length === 0 ? (
+        <p className="mt-3 text-sm text-anthracite-400">{empty}</p>
+      ) : (
+        <ul className="mt-3 flex flex-col gap-2">
+          {items.map((item) => (
+            <li key={item.id} className="flex items-center justify-between gap-3 rounded-xl border border-anthracite-100 px-4 py-3">
+              <div className="flex flex-col gap-1">
+                <span className="text-sm font-medium text-anthracite-900">{item.title}</span>
+                <span className="text-xs text-anthracite-400">{item.sublabel}</span>
+              </div>
+              <Link href={`/admin/opportunites/${item.id}`} className="text-xs font-medium text-gold-600 hover:text-gold-500">
+                Voir
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

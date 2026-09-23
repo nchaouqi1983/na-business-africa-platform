@@ -157,6 +157,10 @@ export const notificationTypeValues = [
   "VISITE_MODIFIEE",
   "VISITE_ANNULEE",
   "PROSPECT_ASSIGNE",
+  "OPPORTUNITE_ASSIGNEE",
+  "OPPORTUNITE_STADE",
+  "OPPORTUNITE_CLOTURE_PROCHE",
+  "OPPORTUNITE_SANS_ACTIVITE",
 ] as const;
 export type NotificationTypeValue = (typeof notificationTypeValues)[number];
 export const notificationTypeLabels: Record<NotificationTypeValue, string> = {
@@ -167,4 +171,8 @@ export const notificationTypeLabels: Record<NotificationTypeValue, string> = {
   VISITE_MODIFIEE: "Visite modifiée",
   VISITE_ANNULEE: "Visite annulée",
   PROSPECT_ASSIGNE: "Prospect assigné",
+  OPPORTUNITE_ASSIGNEE: "Opportunité assignée",
+  OPPORTUNITE_STADE: "Changement de stade",
+  OPPORTUNITE_CLOTURE_PROCHE: "Clôture proche",
+  OPPORTUNITE_SANS_ACTIVITE: "Opportunité sans activité",
 };

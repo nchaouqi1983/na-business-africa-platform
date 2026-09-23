@@ -2,7 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireAdminUser } from "@/lib/auth/dal";
-import { canViewVisit, canEditVisit, canViewProspect } from "@/lib/crm/permissions";
+import { canViewVisit, canEditVisit, canViewProspect, canViewOpportunity, canEditOpportunity, canCreateOpportunity } from "@/lib/crm/permissions";
+import { findOpenOpportunityForVisit } from "@/lib/crm/opportunity-queries";
+import { linkVisitToOpportunity } from "@/lib/crm/opportunity-actions";
+import { opportunityStageLabels } from "@/lib/crm/opportunity-rules";
 import { getVisitById } from "@/lib/crm/visit-queries";
 import { updateVisit, setVisitStatus } from "@/lib/crm/visit-actions";
 import { listCrmAssignableUsers } from "@/lib/crm/prospect-queries";
@@ -49,7 +52,15 @@ export default async function VisitDetailPage({ params, searchParams }: PageProp
   const errorParam = typeof sp.erreur === "string" ? sp.erreur : undefined;
   const errorMessage = errorParam ? errorMessages[errorParam] : undefined;
 
-  const users = await listCrmAssignableUsers();
+  const [users, candidateOpportunity] = await Promise.all([
+    listCrmAssignableUsers(),
+    !visit.opportunityId && visit.status === "REALISEE" ? findOpenOpportunityForVisit(visit.prospectId, visit.propertyId) : Promise.resolve(null),
+  ]);
+  // Phase 6L: a "visite réalisée" either updates its opportunity or seeds a new one.
+  const linkedOpportunity = visit.opportunity && canViewOpportunity(user.role, user.id, visit.opportunity) ? visit.opportunity : null;
+  const attachableOpportunity =
+    candidateOpportunity && canEdit && canEditOpportunity(user.role, user.id, candidateOpportunity) ? candidateOpportunity : null;
+  const canSeedOpportunity = !visit.opportunityId && visit.status === "REALISEE" && canCreateOpportunity(user.role) && canSeeProspect;
   const boundUpdate = updateVisit.bind(null, visit.id);
   const boundCreateActivity = createActivity.bind(null, { prospectId: visit.prospectId, propertyId: visit.propertyId, visitId: visit.id });
 
@@ -107,6 +118,43 @@ export default async function VisitDetailPage({ params, searchParams }: PageProp
           </div>
         )}
       </div>
+
+      {(linkedOpportunity || attachableOpportunity || canSeedOpportunity) && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gold-300 bg-gold-200/30 p-4">
+          <p className="text-sm text-anthracite-800">
+            {linkedOpportunity
+              ? `Visite rattachée à l'opportunité ${linkedOpportunity.reference} (${opportunityStageLabels[linkedOpportunity.stage]}).`
+              : attachableOpportunity
+                ? `Une opportunité ouverte existe pour ce prospect : ${attachableOpportunity.reference} (${opportunityStageLabels[attachableOpportunity.stage]}).`
+                : "Visite réalisée : transformez-la en opportunité commerciale."}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {linkedOpportunity && (
+              <Button href={`/admin/opportunites/${linkedOpportunity.id}`} size="sm">
+                Mettre à jour l&apos;opportunité
+              </Button>
+            )}
+            {!linkedOpportunity && attachableOpportunity && (
+              <form action={linkVisitToOpportunity.bind(null, attachableOpportunity.id)}>
+                <input type="hidden" name="visitId" value={visit.id} />
+                <Button type="submit" size="sm">
+                  Mettre à jour l&apos;opportunité
+                </Button>
+              </form>
+            )}
+            {!linkedOpportunity && canSeedOpportunity && (
+              <Button
+                href={`/admin/opportunites/nouveau?visitId=${visit.id}`}
+                variant={attachableOpportunity ? "ghost" : "primary"}
+                size="sm"
+                className={attachableOpportunity ? "border border-anthracite-200 hover:border-gold-500" : ""}
+              >
+                Créer une opportunité
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="grid gap-4 rounded-2xl border border-anthracite-100 bg-white p-6 sm:grid-cols-2 lg:grid-cols-4">
         <Info label="Prospect" value={canSeeProspect ? prospectLabel(visit.prospect) : "—"} />

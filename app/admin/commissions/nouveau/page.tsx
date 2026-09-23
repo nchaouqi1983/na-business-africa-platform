@@ -30,6 +30,7 @@ export default async function NewCommissionCasePage({
   const sp = await searchParams;
   const propertyId = typeof sp.propertyId === "string" ? sp.propertyId : undefined;
   const mandateId = typeof sp.mandateId === "string" ? sp.mandateId : undefined;
+  const opportunityId = typeof sp.opportunityId === "string" ? sp.opportunityId : undefined;
 
   if (!propertyId) {
     return (
@@ -53,6 +54,7 @@ export default async function NewCommissionCasePage({
         <span className="text-xs font-semibold uppercase tracking-[0.2em] text-gold-600">Nouveau dossier de commission</span>
         <h1 className="font-display text-3xl font-semibold text-anthracite-950">{property.titleFr}</h1>
         <p className="text-sm text-anthracite-500">{property.reference}</p>
+        {opportunityId && <p className="text-sm text-anthracite-500">Ce dossier sera lié à l&apos;opportunité d&apos;origine.</p>}
       </div>
 
       <div className="rounded-2xl border border-anthracite-100 bg-white p-6 lg:p-8">
@@ -61,6 +63,7 @@ export default async function NewCommissionCasePage({
           submitLabel="Créer le dossier"
           pickerMandates={mandates.map((mandate) => ({ id: mandate.id, label: `${mandate.reference} — ${mandateTypeLabels[mandate.type]}` }))}
           defaultValues={mandateId ? { mandateId } : undefined}
+          opportunityId={opportunityId}
         />
       </div>
     </div>

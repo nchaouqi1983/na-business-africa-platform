@@ -30,6 +30,7 @@ export default async function NewVisitPage({ searchParams }: PageProps<"/admin/v
   const sp = await searchParams;
   const initialProspectId = typeof sp.prospectId === "string" ? sp.prospectId : "";
   const initialPropertyId = typeof sp.propertyId === "string" ? sp.propertyId : "";
+  const opportunityId = typeof sp.opportunityId === "string" ? sp.opportunityId : undefined;
 
   const [properties, prospects, users] = await Promise.all([
     searchPropertiesForVisitPicker(),
@@ -50,6 +51,7 @@ export default async function NewVisitPage({ searchParams }: PageProps<"/admin/v
           submitLabel="Planifier la visite"
           initialPropertyId={initialPropertyId}
           initialProspectId={initialProspectId}
+          opportunityId={opportunityId}
           defaultValues={{ assignedToId: user.role === "AGENT" ? user.id : undefined }}
           pickerProperties={properties.map((property) => ({ id: property.id, label: property.titleFr, sublabel: `${property.reference} · ${property.city}` }))}
           pickerProspects={prospects.map((prospect) => ({ id: prospect.id, label: prospectLabel(prospect), sublabel: prospect.reference }))}

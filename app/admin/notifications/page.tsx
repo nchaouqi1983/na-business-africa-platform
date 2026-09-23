@@ -12,7 +12,8 @@ export const metadata: Metadata = {
   title: "Notifications | NA Business Africa",
 };
 
-function notificationHref(notification: { prospectId: string | null; visitId: string | null }): string | null {
+function notificationHref(notification: { prospectId: string | null; visitId: string | null; opportunityId: string | null }): string | null {
+  if (notification.opportunityId) return `/admin/opportunites/${notification.opportunityId}`;
   if (notification.visitId) return `/admin/visites/${notification.visitId}`;
   if (notification.prospectId) return `/admin/prospects/${notification.prospectId}`;
   return null;

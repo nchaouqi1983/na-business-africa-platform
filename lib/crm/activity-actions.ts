@@ -4,14 +4,15 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { requireAdminUser, type AuthenticatedUser } from "@/lib/auth/dal";
-import { canCreateActivity, canEditActivity, canViewProspect } from "@/lib/crm/permissions";
+import { canCreateActivity, canEditActivity, canViewProspect, canViewOpportunity } from "@/lib/crm/permissions";
 import { parseActivityForm } from "@/lib/crm/activity-schema";
 import { notifyActivityCreated } from "@/lib/crm/notification-service";
+import { touchOpportunity } from "@/lib/crm/opportunity-service";
 import { zodFieldErrors } from "@/lib/admin/zod-helpers";
 
 export type ActivityFormState = { error?: string; fieldErrors?: Record<string, string> } | undefined;
 
-type ActivityContext = { prospectId: string; propertyId?: string | null; visitId?: string | null };
+type ActivityContext = { prospectId: string; propertyId?: string | null; visitId?: string | null; opportunityId?: string | null };
 
 async function performCreateActivity(user: AuthenticatedUser, context: ActivityContext, formData: FormData): Promise<ActivityFormState> {
   if (!canCreateActivity(user.role)) {
@@ -22,6 +23,14 @@ async function performCreateActivity(user: AuthenticatedUser, context: ActivityC
   if (!prospect) return { error: "Prospect introuvable.", fieldErrors: { prospectId: "Prospect introuvable." } };
   if (!canViewProspect(user.role, user.id, prospect)) {
     return { error: "Vous n'avez pas accès à ce prospect.", fieldErrors: { prospectId: "Prospect inaccessible." } };
+  }
+
+  // Phase 6L: an action can hang off an Opportunity of the same prospect.
+  if (context.opportunityId) {
+    const opportunity = await prisma.opportunity.findUnique({ where: { id: context.opportunityId } });
+    if (!opportunity || opportunity.prospectId !== context.prospectId || !canViewOpportunity(user.role, user.id, opportunity)) {
+      return { error: "Opportunité inaccessible pour ce prospect." };
+    }
   }
 
   const parsed = parseActivityForm(formData);
@@ -39,6 +48,7 @@ async function performCreateActivity(user: AuthenticatedUser, context: ActivityC
       prospectId: context.prospectId,
       propertyId: context.propertyId ?? undefined,
       visitId: context.visitId ?? undefined,
+      opportunityId: context.opportunityId ?? undefined,
       type: parsed.data.type,
       title: parsed.data.title,
       content: parsed.data.content,
@@ -56,9 +66,11 @@ async function performCreateActivity(user: AuthenticatedUser, context: ActivityC
       action: "ACTIVITY_CREATED",
       entity: "Activity",
       entityId: activity.id,
-      metadata: { prospectId: context.prospectId, type: activity.type, status: activity.status },
+      metadata: { prospectId: context.prospectId, opportunityId: context.opportunityId ?? null, type: activity.type, status: activity.status },
     },
   });
+
+  await touchOpportunity(context.opportunityId);
 
   await notifyActivityCreated({
     id: activity.id,
@@ -72,6 +84,7 @@ async function performCreateActivity(user: AuthenticatedUser, context: ActivityC
   revalidatePath(`/admin/prospects/${context.prospectId}`);
   revalidatePath("/admin/actions");
   if (context.visitId) revalidatePath(`/admin/visites/${context.visitId}`);
+  if (context.opportunityId) revalidatePath(`/admin/opportunites/${context.opportunityId}`);
   return undefined;
 }
 
@@ -119,6 +132,8 @@ export async function completeActivityWithFollowUp(id: string, prospectId: strin
   revalidatePath("/admin/actions");
   revalidatePath("/admin/aujourd-hui");
   if (activity.visitId) revalidatePath(`/admin/visites/${activity.visitId}`);
+  await touchOpportunity(activity.opportunityId);
+  if (activity.opportunityId) revalidatePath(`/admin/opportunites/${activity.opportunityId}`);
   redirect(`/admin/aujourd-hui?prochaine=${prospectId}`);
 }
 
@@ -144,4 +159,6 @@ export async function setActivityStatus(id: string, status: "TERMINEE" | "ANNULE
   revalidatePath(`/admin/prospects/${activity.prospectId}`);
   revalidatePath("/admin/actions");
   if (activity.visitId) revalidatePath(`/admin/visites/${activity.visitId}`);
+  await touchOpportunity(activity.opportunityId);
+  if (activity.opportunityId) revalidatePath(`/admin/opportunites/${activity.opportunityId}`);
 }

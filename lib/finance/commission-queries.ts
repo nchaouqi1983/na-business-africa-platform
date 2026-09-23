@@ -75,6 +75,7 @@ export async function listCommissionCases(filters: CommissionCaseListFilters) {
 const commissionCaseDetailInclude = {
   property: { select: { id: true, reference: true, titleFr: true, city: true } },
   mandate: { select: { id: true, reference: true, type: true, status: true } },
+  opportunity: { select: { id: true, reference: true } },
   createdBy: { select: { id: true, name: true, email: true } },
   shares: {
     include: {

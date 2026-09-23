@@ -13,6 +13,11 @@ export type NetworkEntityStats = {
   prospectsInterested: number;
   visitsScheduled: number;
   visitsCompleted: number;
+  /** Phase 6L — opportunities on the linked biens. pipelineVolume = Σ estimated DEAL amounts of the open ones, never revenue. */
+  opportunitiesOpen: number;
+  opportunitiesWon: number;
+  opportunitiesLost: number;
+  pipelineVolume: number;
   commissionsPrevues: number | null;
   commissionsEncaissees: number | null;
 };

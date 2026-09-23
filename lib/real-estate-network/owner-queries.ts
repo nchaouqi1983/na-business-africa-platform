@@ -2,6 +2,7 @@ import "server-only";
 import { prisma } from "@/lib/db";
 import { Prisma } from "@/lib/generated/prisma/client";
 import type { NetworkEntityStats } from "@/lib/admin/network-stats-types";
+import { getOpportunityStatsForProperties } from "@/lib/crm/opportunity-queries";
 
 /**
  * Query layer for the Owner registry (phase 6E). Every caller must gate
@@ -119,6 +120,8 @@ export async function getOwnerStats(ownerId: string, canSeeFinance: boolean): Pr
       prisma.visit.count({ where: { property: propertyScope, status: "REALISEE" } }),
     ]);
 
+  const opportunityStats = await getOpportunityStatsForProperties(propertyScope);
+
   let commissionsPrevues: number | null = null;
   let commissionsEncaissees: number | null = null;
   if (canSeeFinance) {
@@ -142,6 +145,7 @@ export async function getOwnerStats(ownerId: string, canSeeFinance: boolean): Pr
     prospectsInterested,
     visitsScheduled,
     visitsCompleted,
+    ...opportunityStats,
     commissionsPrevues,
     commissionsEncaissees,
   };

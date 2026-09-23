@@ -2,6 +2,7 @@ import "server-only";
 import { prisma } from "@/lib/db";
 import { Prisma, type IntermediaryType as DbIntermediaryType } from "@/lib/generated/prisma/client";
 import type { NetworkEntityStats } from "@/lib/admin/network-stats-types";
+import { getOpportunityStatsForProperties } from "@/lib/crm/opportunity-queries";
 
 export const INTERMEDIARY_PAGE_SIZE = 20;
 
@@ -106,6 +107,8 @@ export async function getIntermediaryStats(intermediaryId: string, canSeeFinance
       prisma.visit.count({ where: { property: propertyScope, status: "REALISEE" } }),
     ]);
 
+  const opportunityStats = await getOpportunityStatsForProperties(propertyScope);
+
   let commissionsPrevues: number | null = null;
   let commissionsEncaissees: number | null = null;
   if (canSeeFinance) {
@@ -129,6 +132,7 @@ export async function getIntermediaryStats(intermediaryId: string, canSeeFinance
     prospectsInterested,
     visitsScheduled,
     visitsCompleted,
+    ...opportunityStats,
     commissionsPrevues,
     commissionsEncaissees,
   };

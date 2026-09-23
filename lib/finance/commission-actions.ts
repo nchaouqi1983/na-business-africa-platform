@@ -75,6 +75,17 @@ export async function createCommissionCase(
     mandateId = mandate.id;
   }
 
+  // Phase 6L: explicit link to the Opportunity this dossier settles (same bien only) — never automatic.
+  const opportunityIdInput = String(formData.get("opportunityId") ?? "").trim();
+  let opportunityId: string | undefined;
+  if (opportunityIdInput) {
+    const opportunity = await prisma.opportunity.findUnique({ where: { id: opportunityIdInput }, select: { id: true, propertyId: true } });
+    if (!opportunity || opportunity.propertyId !== propertyId) {
+      return { error: "Opportunité invalide pour ce bien." };
+    }
+    opportunityId = opportunity.id;
+  }
+
   const agencyCommissionAmount =
     data.agencyCommissionRate !== undefined
       ? round2((data.agencyCommissionRate / 100) * data.baseAmount)
@@ -87,6 +98,7 @@ export async function createCommissionCase(
       reference,
       propertyId,
       mandateId,
+      opportunityId,
       transaction: data.transaction,
       status: data.status,
       basis: data.basis,
@@ -109,13 +121,20 @@ export async function createCommissionCase(
       action: "COMMISSION_CASE_CREATED",
       entity: "CommissionCase",
       entityId: commissionCase.id,
-      metadata: { propertyId, mandateId: mandateId ?? null, transaction: commissionCase.transaction, status: commissionCase.status },
+      metadata: {
+        propertyId,
+        mandateId: mandateId ?? null,
+        opportunityId: opportunityId ?? null,
+        transaction: commissionCase.transaction,
+        status: commissionCase.status,
+      },
     },
   });
 
   revalidatePath("/admin/commissions");
   revalidatePath(`/admin/biens/${propertyId}`);
   if (mandateId) revalidatePath(`/admin/mandats/${mandateId}`);
+  if (opportunityId) revalidatePath(`/admin/opportunites/${opportunityId}`);
   redirect(`/admin/commissions/${commissionCase.id}`);
 }
 

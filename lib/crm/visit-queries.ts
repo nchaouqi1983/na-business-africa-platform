@@ -75,6 +75,7 @@ export async function getVisitById(id: string) {
       assignedTo: { select: { id: true, name: true, email: true } },
       createdBy: { select: { id: true, name: true, email: true } },
       activities: { orderBy: { createdAt: "desc" } },
+      opportunity: { select: { id: true, reference: true, stage: true, createdById: true, assignedToId: true } },
     },
   });
 }

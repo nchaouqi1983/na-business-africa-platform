@@ -4,12 +4,13 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { requireAdminUser } from "@/lib/auth/dal";
-import { canCreateVisit, canEditVisit, canViewProspect } from "@/lib/crm/permissions";
+import { canCreateVisit, canEditVisit, canViewProspect, canEditOpportunity } from "@/lib/crm/permissions";
 import { parseVisitForm, type VisitFormInput } from "@/lib/crm/visit-schema";
 import { generateNextVisitReference } from "@/lib/crm/reference";
 import { notifyVisitCreated, notifyVisitUpdated, notifyVisitCancelled } from "@/lib/crm/notification-service";
 import { visitStatusValues, type VisitStatusValue } from "@/lib/crm/enum-labels";
 import { zodFieldErrors } from "@/lib/admin/zod-helpers";
+import { touchOpportunity } from "@/lib/crm/opportunity-service";
 
 export type VisitFormState =
   | {
@@ -48,6 +49,15 @@ export async function createVisit(_prevState: VisitFormState, formData: FormData
     return { error: "Vous n'avez pas accès à ce prospect.", fieldErrors: { prospectId: "Prospect inaccessible." } };
   }
 
+  // Phase 6L: optional Opportunity this visit is planned for — same prospect, editable by the user.
+  const opportunityId = String(formData.get("opportunityId") ?? "").trim() || undefined;
+  if (opportunityId) {
+    const opportunity = await prisma.opportunity.findUnique({ where: { id: opportunityId } });
+    if (!opportunity || opportunity.prospectId !== prospectId || !canEditOpportunity(user.role, user.id, opportunity)) {
+      return { error: "Opportunité invalide pour ce prospect." };
+    }
+  }
+
   const parsed = parseVisitForm(formData);
   if (!parsed.success) {
     return { error: "Merci de corriger les champs indiqués.", fieldErrors: zodFieldErrors(parsed.error) };
@@ -72,9 +82,11 @@ export async function createVisit(_prevState: VisitFormState, formData: FormData
       type: parsed.data.type,
       participantsCount: parsed.data.participantsCount,
       preVisitNote: parsed.data.preVisitNote,
+      opportunityId,
       createdById: user.id,
     },
   });
+  await touchOpportunity(opportunityId);
 
   // Update the prospect's commercial funnel status when its first visit gets planned.
   if (prospect.status === "NOUVEAU" || prospect.status === "A_QUALIFIER" || prospect.status === "QUALIFIE") {
@@ -88,7 +100,7 @@ export async function createVisit(_prevState: VisitFormState, formData: FormData
       action: "VISIT_CREATED",
       entity: "Visit",
       entityId: visit.id,
-      metadata: { propertyId, prospectId, status: visit.status, type: visit.type },
+      metadata: { propertyId, prospectId, opportunityId: opportunityId ?? null, status: visit.status, type: visit.type },
     },
   });
 
@@ -97,6 +109,7 @@ export async function createVisit(_prevState: VisitFormState, formData: FormData
   revalidatePath("/admin/visites");
   revalidatePath(`/admin/prospects/${prospectId}`);
   revalidatePath(`/admin/biens/${propertyId}`);
+  if (opportunityId) revalidatePath(`/admin/opportunites/${opportunityId}`);
   redirect(`/admin/visites/${visit.id}`);
 }
 
@@ -180,6 +193,8 @@ export async function updateVisit(id: string, _prevState: VisitFormState, formDa
   revalidatePath("/admin/visites");
   revalidatePath(`/admin/prospects/${existing.prospectId}`);
   revalidatePath(`/admin/biens/${existing.propertyId}`);
+  await touchOpportunity(existing.opportunityId);
+  if (existing.opportunityId) revalidatePath(`/admin/opportunites/${existing.opportunityId}`);
   redirect(`/admin/visites/${id}`);
 }
 
@@ -207,5 +222,7 @@ export async function setVisitStatus(id: string, status: VisitStatusValue): Prom
   revalidatePath(`/admin/visites/${id}`);
   revalidatePath("/admin/visites");
   revalidatePath(`/admin/prospects/${visit.prospectId}`);
+  await touchOpportunity(visit.opportunityId);
+  if (visit.opportunityId) revalidatePath(`/admin/opportunites/${visit.opportunityId}`);
   redirect(`/admin/visites/${id}`);
 }

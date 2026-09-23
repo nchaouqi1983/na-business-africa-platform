@@ -25,6 +25,13 @@ export default function NetworkEntityStats({ stats, propertiesHref }: { stats: N
     { label: "Visites réalisées", value: String(stats.visitsCompleted) },
   ];
 
+  const opportunityTiles: Tile[] = [
+    { label: "Opportunités ouvertes", value: String(stats.opportunitiesOpen) },
+    { label: "Opportunités gagnées", value: String(stats.opportunitiesWon) },
+    { label: "Opportunités perdues", value: String(stats.opportunitiesLost) },
+    { label: "Volume pipeline", value: madAmount(stats.pipelineVolume) },
+  ];
+
   return (
     <div className="rounded-2xl border border-anthracite-100 bg-white p-6 lg:p-8">
       <h2 className="font-display text-lg font-semibold text-anthracite-950">Vue d&apos;ensemble</h2>
@@ -46,6 +53,16 @@ export default function NetworkEntityStats({ stats, propertiesHref }: { stats: N
             </div>
           )
         )}
+      </div>
+
+      <h3 className="mt-6 text-xs font-semibold uppercase tracking-wider text-anthracite-500">Pipeline commercial</h3>
+      <div className="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-4">
+        {opportunityTiles.map((tile) => (
+          <div key={tile.label} className="flex flex-col gap-1 rounded-xl border border-anthracite-100 p-4">
+            <span className="text-xs uppercase tracking-wider text-anthracite-400">{tile.label}</span>
+            <span className="font-display text-2xl font-semibold text-anthracite-950">{tile.value}</span>
+          </div>
+        ))}
       </div>
 
       {stats.commissionsPrevues !== null && stats.commissionsEncaissees !== null && (

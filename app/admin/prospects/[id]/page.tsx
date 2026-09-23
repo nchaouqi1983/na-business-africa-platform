@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireAdminUser } from "@/lib/auth/dal";
-import { canViewProspect, canEditProspect } from "@/lib/crm/permissions";
+import { canViewProspect, canEditProspect, canCreateOpportunity, canViewOpportunity } from "@/lib/crm/permissions";
+import { listOpportunitiesForProspect } from "@/lib/crm/opportunity-queries";
+import { opportunityStageLabels, propertyAvailabilityAlert, isClosedStage } from "@/lib/crm/opportunity-rules";
 import { getProspectById, listCrmAssignableUsers, searchPropertiesForInterestPicker } from "@/lib/crm/prospect-queries";
 import { updateProspect, setProspectStatus, upsertPropertyInterest, removePropertyInterest } from "@/lib/crm/prospect-actions";
 import { createActivity, setActivityStatus } from "@/lib/crm/activity-actions";
@@ -61,7 +63,13 @@ export default async function ProspectDetailPage({ params, searchParams }: PageP
   const errorParam = typeof sp.erreur === "string" ? sp.erreur : undefined;
   const errorMessage = errorParam ? errorMessages[errorParam] : undefined;
 
-  const [users, pickerProperties] = await Promise.all([listCrmAssignableUsers(), searchPropertiesForInterestPicker(id)]);
+  const [users, pickerProperties, opportunities] = await Promise.all([
+    listCrmAssignableUsers(),
+    searchPropertiesForInterestPicker(id),
+    listOpportunitiesForProspect(id),
+  ]);
+  const visibleOpportunities = opportunities.filter((opportunity) => canViewOpportunity(user.role, user.id, opportunity));
+  const canAddOpportunity = canEdit && canCreateOpportunity(user.role);
 
   const boundUpdate = updateProspect.bind(null, prospect.id);
   const boundStatus = setProspectStatus.bind(null, prospect.id);
@@ -95,23 +103,30 @@ export default async function ProspectDetailPage({ params, searchParams }: PageP
           </div>
         </div>
 
-        {canEdit && (
-          <form action={boundStatus} className="flex items-end gap-2">
-            <label className="flex flex-col gap-1.5 text-sm">
-              <span className="text-xs font-semibold uppercase tracking-wider text-anthracite-500">Changer le statut</span>
-              <select name="status" defaultValue={prospect.status} className="rounded-xl border border-anthracite-200 px-3 py-2 text-sm outline-none focus:border-gold-500">
-                {prospectStatusOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <Button type="submit" variant="ghost" size="sm" className="border border-anthracite-200 hover:border-gold-500">
-              Mettre à jour
+        <div className="flex flex-wrap items-end gap-3">
+          {canAddOpportunity && (
+            <Button href={`/admin/opportunites/nouveau?prospectId=${prospect.id}`} size="sm">
+              Créer une opportunité
             </Button>
-          </form>
-        )}
+          )}
+          {canEdit && (
+            <form action={boundStatus} className="flex items-end gap-2">
+              <label className="flex flex-col gap-1.5 text-sm">
+                <span className="text-xs font-semibold uppercase tracking-wider text-anthracite-500">Changer le statut</span>
+                <select name="status" defaultValue={prospect.status} className="rounded-xl border border-anthracite-200 px-3 py-2 text-sm outline-none focus:border-gold-500">
+                  {prospectStatusOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <Button type="submit" variant="ghost" size="sm" className="border border-anthracite-200 hover:border-gold-500">
+                Mettre à jour
+              </Button>
+            </form>
+          )}
+        </div>
       </div>
 
       <div className="grid gap-4 rounded-2xl border border-anthracite-100 bg-white p-6 sm:grid-cols-2 lg:grid-cols-4">
@@ -179,6 +194,41 @@ export default async function ProspectDetailPage({ params, searchParams }: PageP
           </div>
         </div>
       )}
+
+      <div className="rounded-2xl border border-anthracite-100 bg-white p-6 lg:p-8">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <h2 className="font-display text-lg font-semibold text-anthracite-950">Opportunités ({visibleOpportunities.length})</h2>
+          {canAddOpportunity && (
+            <Button href={`/admin/opportunites/nouveau?prospectId=${prospect.id}`} variant="ghost" size="sm" className="border border-anthracite-200 hover:border-gold-500">
+              + Créer une opportunité
+            </Button>
+          )}
+        </div>
+        <ul className="mt-4 flex flex-col gap-2">
+          {visibleOpportunities.map((opportunity) => {
+            const alert = propertyAvailabilityAlert(opportunity.property, opportunity.stage);
+            return (
+              <li key={opportunity.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-anthracite-100 p-3">
+                <div className="flex flex-col">
+                  <span className="text-sm font-medium text-anthracite-900">{opportunity.title}</span>
+                  <span className="text-xs text-anthracite-400">
+                    {opportunity.reference} · {opportunity.property ? opportunity.property.titleFr : "Aucun bien"} · {madAmount(opportunity.estimatedAmount)} ·{" "}
+                    {opportunity.probability} %
+                  </span>
+                  {alert && <span className="text-xs font-medium text-red-600">{alert}</span>}
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge tone={isClosedStage(opportunity.stage) ? "anthracite" : "outline"}>{opportunityStageLabels[opportunity.stage]}</Badge>
+                  <Link href={`/admin/opportunites/${opportunity.id}`} className="text-xs font-medium text-gold-600 hover:text-gold-500">
+                    Voir
+                  </Link>
+                </div>
+              </li>
+            );
+          })}
+          {visibleOpportunities.length === 0 && <p className="text-sm text-anthracite-400">Aucune opportunité pour ce prospect.</p>}
+        </ul>
+      </div>
 
       <div className="rounded-2xl border border-anthracite-100 bg-white p-6 lg:p-8">
         <h2 className="font-display text-lg font-semibold text-anthracite-950">

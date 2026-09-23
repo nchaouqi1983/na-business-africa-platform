@@ -33,13 +33,16 @@ type Props = {
   submitLabel: string;
   defaultValues?: CommissionCaseFormDefaults;
   pickerMandates: PickerOption[];
+  /** Phase 6L: explicit link to the opportunity this dossier settles (re-validated server-side). */
+  opportunityId?: string;
 };
 
-export default function CommissionCaseForm({ action, submitLabel, defaultValues, pickerMandates }: Props) {
+export default function CommissionCaseForm({ action, submitLabel, defaultValues, pickerMandates, opportunityId }: Props) {
   const [state, formAction, pending] = useActionState(action, undefined);
 
   return (
     <form action={formAction} className="flex flex-col gap-6">
+      {opportunityId && <input type="hidden" name="opportunityId" value={opportunityId} />}
       {state?.error && (
         <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
           {state.error}

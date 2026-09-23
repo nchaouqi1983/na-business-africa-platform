@@ -56,6 +56,7 @@ export const adminNavGroups: AdminNavGroup[] = [
       { label: "Demandes", href: "/admin/demandes", icon: "inbox" },
       { label: "Prospects", href: "/admin/prospects", icon: "users" },
       { label: "Visites", href: "/admin/visites", icon: "calendar" },
+      { label: "Opportunités", href: "/admin/opportunites", icon: "target" },
       { label: "Actions & relances", href: "/admin/actions", icon: "flag" },
     ],
   },

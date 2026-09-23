@@ -2,6 +2,13 @@ import "server-only";
 import { prisma } from "@/lib/db";
 import { Role } from "@/lib/generated/prisma/enums";
 import type { NotificationType } from "@/lib/generated/prisma/client";
+import {
+  opportunityStageLabels,
+  openOpportunityStages,
+  OPPORTUNITY_CLOSE_SOON_DAYS,
+  OPPORTUNITY_INACTIVITY_DAYS,
+  type OpportunityStageValue,
+} from "@/lib/crm/opportunity-rules";
 
 /**
  * Server-only creators for the internal Notification model (phase 6H1). No
@@ -24,6 +31,7 @@ type NotifyInput = {
   prospectId?: string;
   visitId?: string;
   activityId?: string;
+  opportunityId?: string;
 };
 
 async function createNotification(input: NotifyInput): Promise<void> {
@@ -36,6 +44,7 @@ async function createNotification(input: NotifyInput): Promise<void> {
       prospectId: input.prospectId,
       visitId: input.visitId,
       activityId: input.activityId,
+      opportunityId: input.opportunityId,
     },
   });
 }
@@ -51,6 +60,7 @@ async function notifyMany(inputs: NotifyInput[]): Promise<void> {
       prospectId: input.prospectId,
       visitId: input.visitId,
       activityId: input.activityId,
+      opportunityId: input.opportunityId,
     })),
   });
 }
@@ -234,6 +244,8 @@ export async function refreshOperationalNotifications(): Promise<void> {
     })),
   ];
 
+  await refreshOpportunityNotifications(now);
+
   if (candidates.length === 0) return;
 
   const existing = await prisma.notification.findMany({
@@ -257,4 +269,147 @@ export async function refreshOperationalNotifications(): Promise<void> {
 
 function formatFr(date: Date): string {
   return new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium", timeStyle: "short" }).format(date);
+}
+
+// --- Opportunities (phase 6L) -----------------------------------------------
+//
+// Same no-external-channel rule as above; `message` only ever carries the
+// OPP reference, a stage label or a date — never an amount, a probability,
+// an internal note or a loss detail. Every creator below is deduplicated.
+
+/**
+ * Creates the notification unless the same user already has an UNREAD one
+ * of the same type for the same opportunity (and, when `sameMessage`, with
+ * the exact same message) — so a burst of edits never stacks duplicates, but
+ * a fact re-surfaces once the previous notice was read.
+ */
+async function createOpportunityNotificationOnce(input: NotifyInput & { opportunityId: string }, sameMessage: boolean): Promise<void> {
+  const existing = await prisma.notification.findFirst({
+    where: {
+      userId: input.userId,
+      type: input.type,
+      opportunityId: input.opportunityId,
+      isRead: false,
+      ...(sameMessage ? { message: input.message } : {}),
+    },
+    select: { id: true },
+  });
+  if (existing) return;
+  await createNotification(input);
+}
+
+/** An Opportunity got a new (non-null) assignedToId, on creation or on a later edit. Never notifies the user who made the change. */
+export async function notifyOpportunityAssigned(
+  opportunity: { id: string; reference: string },
+  assignedToId: string,
+  actorId: string
+): Promise<void> {
+  if (assignedToId === actorId) return;
+  await createOpportunityNotificationOnce(
+    {
+      userId: assignedToId,
+      type: "OPPORTUNITE_ASSIGNEE",
+      title: "Opportunité assignée",
+      message: `L'opportunité ${opportunity.reference} vous a été assignée.`,
+      opportunityId: opportunity.id,
+    },
+    false
+  );
+}
+
+/** An Opportunity moved to another stage — tells its responsible agent, unless they made the move themselves. */
+export async function notifyOpportunityStageChanged(
+  opportunity: { id: string; reference: string; assignedToId: string | null },
+  toStage: OpportunityStageValue,
+  actorId: string
+): Promise<void> {
+  if (!opportunity.assignedToId || opportunity.assignedToId === actorId) return;
+  await createOpportunityNotificationOnce(
+    {
+      userId: opportunity.assignedToId,
+      type: "OPPORTUNITE_STADE",
+      title: "Changement de stade",
+      message: `Opportunité ${opportunity.reference} passée au stade « ${opportunityStageLabels[toStage]} ».`,
+      opportunityId: opportunity.id,
+    },
+    true
+  );
+}
+
+function formatDateFr(date: Date): string {
+  return new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium" }).format(date);
+}
+
+/**
+ * Part of refreshOperationalNotifications(): open opportunities whose
+ * expected closing date falls within the next OPPORTUNITY_CLOSE_SOON_DAYS
+ * days (or already passed), and open opportunities with no activity for
+ * OPPORTUNITY_INACTIVITY_DAYS days. Idempotent:
+ * - "clôture proche" is keyed on (user, opportunity, message) and the
+ *   message embeds the date, so it fires once per expected closing date;
+ * - "sans activité" fires at most once per inactivity period — skipped when a
+ *   notice for that opportunity was already created after its lastActivityAt.
+ */
+async function refreshOpportunityNotifications(now: Date): Promise<void> {
+  const closeSoonLimit = new Date(now.getTime() + OPPORTUNITY_CLOSE_SOON_DAYS * 24 * 60 * 60 * 1000);
+  const inactivityLimit = new Date(now.getTime() - OPPORTUNITY_INACTIVITY_DAYS * 24 * 60 * 60 * 1000);
+
+  const [closingSoon, dormant] = await Promise.all([
+    prisma.opportunity.findMany({
+      where: { stage: { in: openOpportunityStages }, assignedToId: { not: null }, expectedCloseDate: { not: null, lte: closeSoonLimit } },
+      select: { id: true, reference: true, assignedToId: true, expectedCloseDate: true },
+    }),
+    prisma.opportunity.findMany({
+      where: { stage: { in: openOpportunityStages }, assignedToId: { not: null }, lastActivityAt: { lt: inactivityLimit } },
+      select: { id: true, reference: true, assignedToId: true, lastActivityAt: true },
+    }),
+  ]);
+
+  const closeSoonCandidates = closingSoon.map((opportunity) => ({
+    userId: opportunity.assignedToId!,
+    type: "OPPORTUNITE_CLOTURE_PROCHE" as NotificationType,
+    title: "Clôture proche",
+    message: `Opportunité ${opportunity.reference} — clôture estimée le ${formatDateFr(opportunity.expectedCloseDate!)}.`,
+    opportunityId: opportunity.id,
+  }));
+
+  const opportunityIds = [...new Set([...closingSoon, ...dormant].map((opportunity) => opportunity.id))];
+  if (opportunityIds.length === 0) return;
+
+  const existing = await prisma.notification.findMany({
+    where: {
+      opportunityId: { in: opportunityIds },
+      type: { in: ["OPPORTUNITE_CLOTURE_PROCHE", "OPPORTUNITE_SANS_ACTIVITE"] },
+    },
+    select: { userId: true, type: true, opportunityId: true, message: true, createdAt: true },
+  });
+
+  const closeSoonKeys = new Set(
+    existing
+      .filter((row) => row.type === "OPPORTUNITE_CLOTURE_PROCHE")
+      .map((row) => `${row.userId}:${row.opportunityId}:${row.message}`)
+  );
+  const toCreate: NotifyInput[] = closeSoonCandidates.filter(
+    (candidate) => !closeSoonKeys.has(`${candidate.userId}:${candidate.opportunityId}:${candidate.message}`)
+  );
+
+  for (const opportunity of dormant) {
+    const alreadyNotified = existing.some(
+      (row) =>
+        row.type === "OPPORTUNITE_SANS_ACTIVITE" &&
+        row.opportunityId === opportunity.id &&
+        row.userId === opportunity.assignedToId &&
+        row.createdAt > opportunity.lastActivityAt
+    );
+    if (alreadyNotified) continue;
+    toCreate.push({
+      userId: opportunity.assignedToId!,
+      type: "OPPORTUNITE_SANS_ACTIVITE",
+      title: "Opportunité sans activité",
+      message: `Opportunité ${opportunity.reference} sans activité depuis plus de ${OPPORTUNITY_INACTIVITY_DAYS} jours.`,
+      opportunityId: opportunity.id,
+    });
+  }
+
+  await notifyMany(toCreate);
 }

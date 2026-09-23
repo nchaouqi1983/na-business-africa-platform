@@ -37,6 +37,8 @@ type Props = {
   /** Pre-selects the property/prospect pickers — used when arriving from a bien or prospect dossier's "planifier une visite" link. */
   initialPropertyId?: string;
   initialProspectId?: string;
+  /** Phase 6L: planning a visit from an opportunity links it (re-validated server-side). */
+  opportunityId?: string;
 };
 
 export default function VisitForm({
@@ -51,6 +53,7 @@ export default function VisitForm({
   showReportFields = false,
   initialPropertyId = "",
   initialProspectId = "",
+  opportunityId,
 }: Props) {
   const [state, formAction, pending] = useActionState(action, undefined);
   const [propertyId, setPropertyId] = useState(initialPropertyId);
@@ -64,6 +67,8 @@ export default function VisitForm({
           {state.error}
         </p>
       )}
+
+      {opportunityId && <input type="hidden" name="opportunityId" value={opportunityId} />}
 
       {pickerProperties && (
         <Field label="Bien" error={state?.fieldErrors?.propertyId}>

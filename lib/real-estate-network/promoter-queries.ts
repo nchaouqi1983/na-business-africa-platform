@@ -2,6 +2,7 @@ import "server-only";
 import { prisma } from "@/lib/db";
 import { Prisma } from "@/lib/generated/prisma/client";
 import type { NetworkEntityStats } from "@/lib/admin/network-stats-types";
+import { getOpportunityStatsForProperties } from "@/lib/crm/opportunity-queries";
 
 export const PROMOTER_PAGE_SIZE = 20;
 
@@ -97,6 +98,8 @@ export async function getPromoterStats(promoterId: string, canSeeFinance: boolea
       prisma.visit.count({ where: { property: propertyScope, status: "REALISEE" } }),
     ]);
 
+  const opportunityStats = await getOpportunityStatsForProperties(propertyScope);
+
   let commissionsPrevues: number | null = null;
   let commissionsEncaissees: number | null = null;
   if (canSeeFinance) {
@@ -120,6 +123,7 @@ export async function getPromoterStats(promoterId: string, canSeeFinance: boolea
     prospectsInterested,
     visitsScheduled,
     visitsCompleted,
+    ...opportunityStats,
     commissionsPrevues,
     commissionsEncaissees,
   };

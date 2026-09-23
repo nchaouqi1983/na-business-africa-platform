@@ -180,3 +180,44 @@ export function visitOperationalWhere(role: Role, userId: string, scope: Operati
 export function activityOperationalWhere(role: Role, userId: string, scope: OperationalScope): Prisma.ActivityWhereInput | undefined {
   return operationalWhere(role, userId, scope);
 }
+
+// --- Opportunities (phase 6L) -----------------------------------------------
+//
+// Same createdById/assignedToId ownership as Prospect:
+// - SUPER_ADMIN / ADMIN: full access, only roles allowed to override the
+//   stage probability and to see any commission figure.
+// - AGENT: creates opportunities, and reads/edits only those it created or is
+//   assignedTo.
+// - EDITOR: read-only on opportunities assignedTo it — like a Prospect record,
+//   never edits the opportunity itself; its only write path stays the existing
+//   CRM one (completing a linked Activity assignedTo it, see canEditActivity).
+// - VIEWER: read-only on opportunities assignedTo it.
+
+export function canCreateOpportunity(role: Role): boolean {
+  return role === Role.SUPER_ADMIN || role === Role.ADMIN || role === Role.AGENT;
+}
+
+export function canViewOpportunity(role: Role, userId: string, opportunity: Ownership): boolean {
+  return canViewProspect(role, userId, opportunity);
+}
+
+export function canEditOpportunity(role: Role, userId: string, opportunity: Ownership): boolean {
+  return canEditProspect(role, userId, opportunity);
+}
+
+/** Probability override and reopening a closed (GAGNEE/PERDUE) opportunity. */
+export function canOverrideOpportunityProbability(role: Role): boolean {
+  return role === Role.SUPER_ADMIN || role === Role.ADMIN;
+}
+
+export function canReopenOpportunity(role: Role): boolean {
+  return role === Role.SUPER_ADMIN || role === Role.ADMIN;
+}
+
+export function opportunityAccessWhere(role: Role, userId: string): Prisma.OpportunityWhereInput | undefined {
+  return ownershipWhere(role, userId);
+}
+
+export function opportunityOperationalWhere(role: Role, userId: string, scope: OperationalScope): Prisma.OpportunityWhereInput | undefined {
+  return operationalWhere(role, userId, scope);
+}

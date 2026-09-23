@@ -27,7 +27,9 @@ import { searchActivePromoters } from "@/lib/real-estate-network/promoter-querie
 import { canManageFinance } from "@/lib/finance/permissions";
 import { listMandatesForProperty } from "@/lib/finance/mandate-queries";
 import { listCommissionCasesForProperty } from "@/lib/finance/commission-queries";
-import { canViewProspect, canViewVisit } from "@/lib/crm/permissions";
+import { canViewProspect, canViewVisit, canViewOpportunity, canCreateOpportunity } from "@/lib/crm/permissions";
+import { listOpportunitiesForProperty } from "@/lib/crm/opportunity-queries";
+import { opportunityStageLabels, propertyAvailabilityAlert, isClosedStage } from "@/lib/crm/opportunity-rules";
 import { listInterestsForProperty } from "@/lib/crm/prospect-queries";
 import { listVisitsForProperty } from "@/lib/crm/visit-queries";
 import { interestLevelLabels, visitStatusLabels } from "@/lib/crm/enum-labels";
@@ -110,6 +112,7 @@ export default async function PropertyDetailPage({
     propertyCommissionCases,
     propertyInterests,
     propertyVisits,
+    propertyOpportunities,
   ] = await Promise.all([
     listActiveTags(),
     canAssign ? listAssignableUsers() : Promise.resolve([]),
@@ -128,6 +131,7 @@ export default async function PropertyDetailPage({
     canManageFinanceModule ? listCommissionCasesForProperty(id) : Promise.resolve([]),
     listInterestsForProperty(id),
     listVisitsForProperty(id),
+    listOpportunitiesForProperty(id),
   ]);
 
   // Row-level CRM filtering: this bien dossier is shared across roles, but a
@@ -135,6 +139,7 @@ export default async function PropertyDetailPage({
   // it (see lib/crm/permissions.ts) — never leak another agent's prospect.
   const visibleInterests = propertyInterests.filter((interest) => canViewProspect(user.role, user.id, interest.prospect));
   const visibleVisits = propertyVisits.filter((visit) => canViewVisit(user.role, user.id, visit) && canViewProspect(user.role, user.id, visit.prospect));
+  const visibleOpportunities = propertyOpportunities.filter((opportunity) => canViewOpportunity(user.role, user.id, opportunity));
 
   const boundUpdate = updatePropertyDossier.bind(null, property.id);
   const boundPrivate = savePropertyPrivateData.bind(null, property.id);
@@ -448,6 +453,45 @@ export default async function PropertyDetailPage({
             </li>
           ))}
           {visibleVisits.length === 0 && <p className="text-sm text-anthracite-400">Aucune visite planifiée pour ce bien.</p>}
+        </ul>
+      </div>
+
+      <div className="rounded-2xl border border-anthracite-100 bg-white p-6 lg:p-8">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <h2 className="font-display text-lg font-semibold text-anthracite-950">Opportunités liées ({visibleOpportunities.length})</h2>
+          {canCreateOpportunity(user.role) && (
+            <Button href={`/admin/opportunites/nouveau?propertyId=${property.id}`} variant="ghost" size="sm" className="border border-anthracite-200 hover:border-gold-500">
+              + Créer une opportunité
+            </Button>
+          )}
+        </div>
+        {visibleOpportunities.some((opportunity) => propertyAvailabilityAlert(property, opportunity.stage)) && (
+          <p className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
+            Ce bien est archivé ou indisponible alors que des opportunités sont encore ouvertes.
+          </p>
+        )}
+        <ul className="mt-4 flex flex-col gap-2">
+          {visibleOpportunities.map((opportunity) => (
+            <li key={opportunity.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-anthracite-100 p-3">
+              <div className="flex flex-col">
+                <span className="text-sm font-medium text-anthracite-900">{opportunity.title}</span>
+                <span className="text-xs text-anthracite-400">
+                  {opportunity.reference} ·{" "}
+                  {opportunity.prospect.companyName ||
+                    [opportunity.prospect.firstName, opportunity.prospect.lastName].filter(Boolean).join(" ") ||
+                    opportunity.prospect.reference}{" "}
+                  · {opportunity.probability} % · {opportunity.assignedTo?.name ?? opportunity.assignedTo?.email ?? "Non assignée"}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge tone={isClosedStage(opportunity.stage) ? "anthracite" : "outline"}>{opportunityStageLabels[opportunity.stage]}</Badge>
+                <Link href={`/admin/opportunites/${opportunity.id}`} className="text-xs font-medium text-gold-600 hover:text-gold-500">
+                  Voir
+                </Link>
+              </div>
+            </li>
+          ))}
+          {visibleOpportunities.length === 0 && <p className="text-sm text-anthracite-400">Aucune opportunité liée à ce bien.</p>}
         </ul>
       </div>
     </div>

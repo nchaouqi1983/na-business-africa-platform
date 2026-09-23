@@ -7,6 +7,7 @@ export type NavIconName =
   | "inbox"
   | "users"
   | "calendar"
+  | "target"
   | "flag"
   | "user"
   | "briefcase"
@@ -28,6 +29,7 @@ const paths: Record<NavIconName, string> = {
   users: "M8 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm9 0a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM2 20c0-3 2.5-5 6-5s6 2 6 5M14 20c0-2.5 2-4.5 5-4.5s5 2 5 4.5",
   calendar: "M4 5h16v15H4V5Zm0 4h16M8 3v4M16 3v4M9 14h1M14 14h1M9 17h1M14 17h1",
   flag: "M5 21V4m0 1h12l-3 4 3 4H5",
+  target: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Zm0-4a5 5 0 1 0 0-10 5 5 0 0 0 0 10Zm0-4a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z",
   user: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-7 9c0-3.9 3.1-7 7-7s7 3.1 7 7",
   briefcase: "M4 8h16v11H4V8Zm4 0V6a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M4 13h16",
   layers: "m12 3 9 5-9 5-9-5 9-5Zm-9 9 9 5 9-5M3 16l9 5 9-5",

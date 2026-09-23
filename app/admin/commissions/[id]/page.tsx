@@ -126,6 +126,11 @@ export default async function CommissionCaseDetailPage({ params, searchParams }:
           <Link href={`/admin/biens/${commissionCase.property.id}`} className="text-sm font-medium text-gold-600 hover:text-gold-500">
             Voir le bien ({commissionCase.property.reference})
           </Link>
+          {commissionCase.opportunity && (
+            <Link href={`/admin/opportunites/${commissionCase.opportunity.id}`} className="text-sm font-medium text-gold-600 hover:text-gold-500">
+              Opportunité d&apos;origine ({commissionCase.opportunity.reference})
+            </Link>
+          )}
         </div>
 
         <form action={setCommissionCaseStatus.bind(null, commissionCase.id, commissionCase.status === "ANNULEE" ? "PREVISION" : "ANNULEE")}>
