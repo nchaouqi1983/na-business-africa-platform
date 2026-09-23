@@ -3,13 +3,15 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireAdminUser } from "@/lib/auth/dal";
 import { canManageRealEstateNetwork } from "@/lib/real-estate-network/permissions";
-import { getIntermediaryWithProperties } from "@/lib/real-estate-network/intermediary-queries";
+import { canManageFinance } from "@/lib/finance/permissions";
+import { getIntermediaryWithProperties, getIntermediaryStats } from "@/lib/real-estate-network/intermediary-queries";
 import { updateIntermediary, setIntermediaryActive } from "@/lib/real-estate-network/intermediary-actions";
 import { intermediaryTypeLabels } from "@/lib/real-estate-network/enum-labels";
 import { propertyStatusFromDb, propertyStatusLabels, publicationStatusLabels } from "@/lib/admin/property-enum-maps";
 import Badge from "@/components/Badge";
 import Button from "@/components/Button";
 import IntermediaryForm from "../_components/IntermediaryForm";
+import NetworkEntityStats from "../../_components/NetworkEntityStats";
 
 export const metadata: Metadata = {
   title: "Intermédiaire | NA Business Africa",
@@ -35,6 +37,8 @@ export default async function IntermediaryDetailPage({ params, searchParams }: P
   const sp = await searchParams;
   const intermediary = await getIntermediaryWithProperties(id);
   if (!intermediary) notFound();
+
+  const stats = await getIntermediaryStats(intermediary.id, canManageFinance(user.role));
 
   const errorParam = typeof sp.erreur === "string" ? sp.erreur : undefined;
   const errorMessage = errorParam ? errorMessages[errorParam] : undefined;
@@ -66,6 +70,8 @@ export default async function IntermediaryDetailPage({ params, searchParams }: P
           </Button>
         </form>
       </div>
+
+      <NetworkEntityStats stats={stats} propertiesHref={`/admin/biens?intermediaire_id=${intermediary.id}`} />
 
       <div className="rounded-2xl border border-anthracite-100 bg-white p-6 lg:p-8">
         <h2 className="font-display text-lg font-semibold text-anthracite-950">Coordonnées</h2>

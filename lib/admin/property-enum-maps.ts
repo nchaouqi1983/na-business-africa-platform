@@ -11,6 +11,7 @@ import {
   FurnishedState as DbFurnishedState,
   PropertyCondition as DbPropertyCondition,
   Orientation as DbOrientation,
+  PropertyAvailability as DbAvailability,
   TagCategory as DbTagCategory,
 } from "@/lib/generated/prisma/enums";
 import {
@@ -31,6 +32,9 @@ import {
   orientationValues,
   orientationLabels,
   type Orientation,
+  availabilityValues,
+  availabilityLabels,
+  type Availability,
   type TagCategory,
 } from "@/lib/property-schema";
 
@@ -159,6 +163,12 @@ export const propertyStatusFromDb: Record<DbPropertyStatus, PropertyBusinessStat
   [DbPropertyStatus.RETIRE]: "retire",
 };
 
+/** Same labels, keyed by the Prisma enum identifier — for the /admin/biens business-status filter, which queries the database directly. */
+export const propertyStatusFilterOptions = propertyStatusOptions.map((option) => ({
+  value: propertyStatusToDb[option.value],
+  label: option.label,
+}));
+
 /** Nouveaux concepts back-office, sans équivalent dans le contrat public. */
 export const publicationStatusLabels: Record<DbPublicationStatus, string> = {
   BROUILLON: "Brouillon",
@@ -240,6 +250,24 @@ export const orientationFromDb: Record<DbOrientation, Orientation> = {
 };
 
 export const orientationOptions = orientationValues.map((value) => ({ value, label: orientationLabels[value] }));
+
+export const availabilityToDb: Record<Availability, DbAvailability> = {
+  immediate: DbAvailability.IMMEDIATE,
+  "sous-1-mois": DbAvailability.SOUS_1_MOIS,
+  "sous-3-mois": DbAvailability.SOUS_3_MOIS,
+  "sous-6-mois": DbAvailability.SOUS_6_MOIS,
+  "a-la-livraison": DbAvailability.A_LA_LIVRAISON,
+};
+
+export const availabilityFromDb: Record<DbAvailability, Availability> = {
+  [DbAvailability.IMMEDIATE]: "immediate",
+  [DbAvailability.SOUS_1_MOIS]: "sous-1-mois",
+  [DbAvailability.SOUS_3_MOIS]: "sous-3-mois",
+  [DbAvailability.SOUS_6_MOIS]: "sous-6-mois",
+  [DbAvailability.A_LA_LIVRAISON]: "a-la-livraison",
+};
+
+export const availabilityOptions = availabilityValues.map((value) => ({ value, label: availabilityLabels[value] }));
 
 export const tagCategoryToDb: Record<TagCategory, DbTagCategory> = {
   exterieur: DbTagCategory.EXTERIEUR,

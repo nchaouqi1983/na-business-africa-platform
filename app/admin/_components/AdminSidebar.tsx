@@ -8,12 +8,14 @@ import AdminSidebarNav from "./AdminSidebarNav";
 
 export default function AdminSidebar({ user, unreadNotifications = 0 }: { user: AuthenticatedUser; unreadNotifications?: number }) {
   return (
-    <aside className="sticky top-0 hidden h-screen w-72 shrink-0 flex-col justify-between border-r border-anthracite-100 bg-white px-6 py-8 md:flex">
-      <div className="flex flex-col gap-8">
-        <Link href="/admin">
+    <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col justify-between border-r border-anthracite-100 bg-white px-4 py-6 md:flex">
+      <div className="flex min-h-0 flex-1 flex-col gap-6">
+        <Link href="/admin" className="px-2">
           <BrandLockup tagline={false} />
         </Link>
-        <AdminSidebarNav role={user.role} unreadNotifications={unreadNotifications} />
+        <div className="min-h-0 flex-1 overflow-y-auto pb-2">
+          <AdminSidebarNav role={user.role} unreadNotifications={unreadNotifications} />
+        </div>
       </div>
 
       <div className="flex flex-col gap-4 border-t border-anthracite-100 pt-6">

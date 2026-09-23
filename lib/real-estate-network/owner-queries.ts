@@ -1,6 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/db";
 import { Prisma } from "@/lib/generated/prisma/client";
+import type { NetworkEntityStats } from "@/lib/admin/network-stats-types";
 
 /**
  * Query layer for the Owner registry (phase 6E). Every caller must gate
@@ -92,4 +93,56 @@ export async function getOwnerWithProperties(id: string) {
       },
     },
   });
+}
+
+/**
+ * 360° dashboard counters for the owner detail page (phase 6K §4).
+ * `canSeeFinance` gates the commission aggregates — when false, those two
+ * queries are never even run and the fields come back null (not hidden
+ * zeros: the caller must not render a "0 MAD" that looks like a real amount).
+ * A mandate counts for this owner either because it names them directly
+ * (Mandate.ownerId) or because it covers one of their linked properties —
+ * the two can diverge since PropertyOwner and Mandate.ownerId are independent.
+ */
+export async function getOwnerStats(ownerId: string, canSeeFinance: boolean): Promise<NetworkEntityStats> {
+  const propertyScope: Prisma.PropertyWhereInput = { owners: { some: { ownerId } } };
+
+  const [propertiesTotal, propertiesPublished, propertiesDraft, propertiesOffMarket, activeMandates, prospectsInterested, visitsScheduled, visitsCompleted] =
+    await Promise.all([
+      prisma.property.count({ where: propertyScope }),
+      prisma.property.count({ where: { ...propertyScope, publicationStatus: "PUBLIE" } }),
+      prisma.property.count({ where: { ...propertyScope, publicationStatus: "BROUILLON" } }),
+      prisma.property.count({ where: { ...propertyScope, visibility: "OFF_MARKET" } }),
+      prisma.mandate.count({ where: { status: "ACTIF", OR: [{ ownerId }, { property: propertyScope }] } }),
+      prisma.prospect.count({ where: { propertyInterests: { some: { property: propertyScope } } } }),
+      prisma.visit.count({ where: { property: propertyScope, status: { in: ["PLANIFIEE", "CONFIRMEE"] } } }),
+      prisma.visit.count({ where: { property: propertyScope, status: "REALISEE" } }),
+    ]);
+
+  let commissionsPrevues: number | null = null;
+  let commissionsEncaissees: number | null = null;
+  if (canSeeFinance) {
+    const [prevues, encaissees] = await Promise.all([
+      prisma.commissionCase.aggregate({ where: { property: propertyScope }, _sum: { agencyCommissionAmount: true } }),
+      prisma.commissionPayment.aggregate({
+        where: { status: { in: ["RECU", "PARTIEL"] }, commissionCase: { property: propertyScope } },
+        _sum: { amount: true },
+      }),
+    ]);
+    commissionsPrevues = Number(prevues._sum.agencyCommissionAmount ?? 0);
+    commissionsEncaissees = Number(encaissees._sum.amount ?? 0);
+  }
+
+  return {
+    propertiesTotal,
+    propertiesPublished,
+    propertiesDraft,
+    propertiesOffMarket,
+    activeMandates,
+    prospectsInterested,
+    visitsScheduled,
+    visitsCompleted,
+    commissionsPrevues,
+    commissionsEncaissees,
+  };
 }

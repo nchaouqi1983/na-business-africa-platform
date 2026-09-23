@@ -103,15 +103,15 @@ export default async function DemandesPage({ searchParams }: PageProps<"/admin/d
                 {canEditProspect(user.role, user.id, prospect) && prospect.status === "NOUVEAU" && (
                   <form action={setProspectStatus.bind(null, prospect.id)}>
                     <input type="hidden" name="status" value="A_QUALIFIER" />
-                    <Button type="submit" variant="secondary" size="sm">
+                    <Button type="submit" variant="ghost" size="sm" className="border border-anthracite-200 hover:border-gold-500">
                       Marquer à qualifier
                     </Button>
                   </form>
                 )}
-                {canEditProspect(user.role, user.id, prospect) && (
+                {canEditProspect(user.role, user.id, prospect) && (prospect.status === "NOUVEAU" || prospect.status === "A_QUALIFIER") && (
                   <form action={setProspectStatus.bind(null, prospect.id)}>
                     <input type="hidden" name="status" value="QUALIFIE" />
-                    <Button type="submit" variant="secondary" size="sm">
+                    <Button type="submit" variant="ghost" size="sm" className="border border-anthracite-200 hover:border-gold-500">
                       Qualifier
                     </Button>
                   </form>

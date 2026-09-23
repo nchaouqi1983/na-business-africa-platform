@@ -3,12 +3,14 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireAdminUser } from "@/lib/auth/dal";
 import { canManageRealEstateNetwork } from "@/lib/real-estate-network/permissions";
-import { getPromoterWithPrograms } from "@/lib/real-estate-network/promoter-queries";
+import { canManageFinance } from "@/lib/finance/permissions";
+import { getPromoterWithPrograms, getPromoterStats } from "@/lib/real-estate-network/promoter-queries";
 import { updatePromoter, setPromoterActive } from "@/lib/real-estate-network/promoter-actions";
 import { programStatusLabels } from "@/lib/real-estate-network/enum-labels";
 import Badge from "@/components/Badge";
 import Button from "@/components/Button";
 import PromoterForm from "../_components/PromoterForm";
+import NetworkEntityStats from "../../_components/NetworkEntityStats";
 
 export const metadata: Metadata = {
   title: "Promoteur | NA Business Africa",
@@ -34,6 +36,8 @@ export default async function PromoterDetailPage({ params, searchParams }: PageP
   const sp = await searchParams;
   const promoter = await getPromoterWithPrograms(id);
   if (!promoter) notFound();
+
+  const stats = await getPromoterStats(promoter.id, canManageFinance(user.role));
 
   const errorParam = typeof sp.erreur === "string" ? sp.erreur : undefined;
   const errorMessage = errorParam ? errorMessages[errorParam] : undefined;
@@ -62,6 +66,8 @@ export default async function PromoterDetailPage({ params, searchParams }: PageP
           </Button>
         </form>
       </div>
+
+      <NetworkEntityStats stats={stats} propertiesHref={`/admin/biens?promoteur_id=${promoter.id}`} />
 
       <div className="rounded-2xl border border-anthracite-100 bg-white p-6 lg:p-8">
         <h2 className="font-display text-lg font-semibold text-anthracite-950">Coordonnées</h2>

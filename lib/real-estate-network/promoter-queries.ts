@@ -1,6 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/db";
 import { Prisma } from "@/lib/generated/prisma/client";
+import type { NetworkEntityStats } from "@/lib/admin/network-stats-types";
 
 export const PROMOTER_PAGE_SIZE = 20;
 
@@ -73,4 +74,53 @@ export async function getPromoterWithPrograms(id: string) {
       },
     },
   });
+}
+
+/**
+ * 360° dashboard counters for the promoter detail page (phase 6K §4). A
+ * promoter has no direct Property relation — everything is scoped through
+ * `developmentProgram.promoterId` (a promoter's only link to properties is
+ * via its programs). See getOwnerStats for the canSeeFinance contract.
+ */
+export async function getPromoterStats(promoterId: string, canSeeFinance: boolean): Promise<NetworkEntityStats> {
+  const propertyScope: Prisma.PropertyWhereInput = { developmentProgram: { promoterId } };
+
+  const [propertiesTotal, propertiesPublished, propertiesDraft, propertiesOffMarket, activeMandates, prospectsInterested, visitsScheduled, visitsCompleted] =
+    await Promise.all([
+      prisma.property.count({ where: propertyScope }),
+      prisma.property.count({ where: { ...propertyScope, publicationStatus: "PUBLIE" } }),
+      prisma.property.count({ where: { ...propertyScope, publicationStatus: "BROUILLON" } }),
+      prisma.property.count({ where: { ...propertyScope, visibility: "OFF_MARKET" } }),
+      prisma.mandate.count({ where: { status: "ACTIF", property: propertyScope } }),
+      prisma.prospect.count({ where: { propertyInterests: { some: { property: propertyScope } } } }),
+      prisma.visit.count({ where: { property: propertyScope, status: { in: ["PLANIFIEE", "CONFIRMEE"] } } }),
+      prisma.visit.count({ where: { property: propertyScope, status: "REALISEE" } }),
+    ]);
+
+  let commissionsPrevues: number | null = null;
+  let commissionsEncaissees: number | null = null;
+  if (canSeeFinance) {
+    const [prevues, encaissees] = await Promise.all([
+      prisma.commissionCase.aggregate({ where: { property: propertyScope }, _sum: { agencyCommissionAmount: true } }),
+      prisma.commissionPayment.aggregate({
+        where: { status: { in: ["RECU", "PARTIEL"] }, commissionCase: { property: propertyScope } },
+        _sum: { amount: true },
+      }),
+    ]);
+    commissionsPrevues = Number(prevues._sum.agencyCommissionAmount ?? 0);
+    commissionsEncaissees = Number(encaissees._sum.amount ?? 0);
+  }
+
+  return {
+    propertiesTotal,
+    propertiesPublished,
+    propertiesDraft,
+    propertiesOffMarket,
+    activeMandates,
+    prospectsInterested,
+    visitsScheduled,
+    visitsCompleted,
+    commissionsPrevues,
+    commissionsEncaissees,
+  };
 }

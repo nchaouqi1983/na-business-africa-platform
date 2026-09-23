@@ -5,6 +5,7 @@ import { roleLabels } from "@/lib/auth/roles";
 import { countUnreadNotifications } from "@/lib/crm/notification-queries";
 import AdminSidebar from "./_components/AdminSidebar";
 import AdminMobileNav from "./_components/AdminMobileNav";
+import AdminGlobalSearch from "./_components/AdminGlobalSearch";
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
   const user = await requireAdminUser();
@@ -21,6 +22,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
           logoutAction={logout}
           unreadNotifications={unreadNotifications}
         />
+        <AdminGlobalSearch />
         <main className="flex-1 px-4 py-8 sm:px-6 lg:px-10 lg:py-10">
           <div className="mx-auto flex max-w-6xl flex-col gap-8">{children}</div>
         </main>

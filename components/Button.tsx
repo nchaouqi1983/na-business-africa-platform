@@ -44,6 +44,10 @@ export default function Button(props: ButtonProps) {
     "transition-colors duration-200 whitespace-nowrap",
     sizeStyles[size],
     variantStyles[variant],
+    // Always wins over the variant's own colors: a disabled <button> (native
+    // :disabled, never applies to the <a>/<Link> render path) must never look
+    // active — same neutral gray treatment regardless of variant.
+    "disabled:cursor-not-allowed disabled:border-anthracite-200 disabled:bg-anthracite-100 disabled:text-anthracite-400 disabled:hover:border-anthracite-200 disabled:hover:bg-anthracite-100 disabled:hover:text-anthracite-400",
     className,
   ].join(" ");
 

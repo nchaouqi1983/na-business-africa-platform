@@ -48,6 +48,8 @@ model User {
   assignedActivities Activity[] @relation("ActivityAssignedTo")
 
   notifications Notification[]
+
+  createdImportBatches PropertyImportBatch[] @relation("PropertyImportBatchCreatedBy")
 }
 
 model Session {
@@ -162,6 +164,15 @@ enum Orientation {
   SUD_OUEST  @map("sud-ouest")
 }
 
+/** Mirrors lib/property-schema.ts's Availability — added in phase 6J2 for the extended CSV import. */
+enum PropertyAvailability {
+  IMMEDIATE
+  SOUS_1_MOIS     @map("sous-1-mois")
+  SOUS_3_MOIS     @map("sous-3-mois")
+  SOUS_6_MOIS     @map("sous-6-mois")
+  A_LA_LIVRAISON  @map("a-la-livraison")
+}
+
 enum TagCategory {
   EXTERIEUR     @map("exterieur")
   CONFORT       @map("confort")
@@ -225,14 +236,18 @@ model Property {
   floor         Int?
   totalFloors   Int?
 
-  yearBuilt   Int?
-  furnished   FurnishedState?
-  condition   PropertyCondition?
-  orientation Orientation?
+  yearBuilt    Int?
+  furnished    FurnishedState?
+  condition    PropertyCondition?
+  orientation  Orientation?
+  /** Mirrors lib/property-schema.ts's Availability — added in phase 6J2 for the extended CSV import; not yet surfaced in the manual dossier form. */
+  availability PropertyAvailability?
 
   isFeatured          Boolean @default(false)
   isGoodDeal          Boolean @default(false)
   isCoupDeCoeur       Boolean @default(false)
+  /** Mirrors lib/property-schema.ts's PropertyVisibility.isExclusive — added in phase 6J2, same reasoning as `availability` above. */
+  isExclusive         Boolean @default(false)
   isCreditEligible    Boolean @default(false)
   isMourabahaEligible Boolean @default(false)
 
@@ -247,6 +262,18 @@ model Property {
 
   publishedAt DateTime?
   archivedAt  DateTime?
+
+  /**
+   * Provenance CSV (phase 6J1) — `importSource` + `sourceExternalId` forment
+   * la clé stable de détection de doublon entre deux imports successifs du
+   * même bien externe (ex. l'ancien site capitalparc.ma). Toujours `null`
+   * ensemble pour un bien créé à la main dans l'admin. Ne jamais dériver
+   * `reference`/`slug` de ces champs : ils restent générés normalement.
+   */
+  importSource     String?
+  sourceExternalId String?
+
+  importRows PropertyImportRow[]
 
   createdById String
   createdBy   User   @relation("PropertyCreatedBy", fields: [createdById], references: [id])
@@ -304,6 +331,7 @@ model Property {
   @@index([status])
   @@index([developmentProgramId])
   @@index([developmentLotId])
+  @@unique([importSource, sourceExternalId])
 }
 
 /**
@@ -1336,4 +1364,112 @@ model Notification {
   createdAt DateTime @default(now())
 
   @@index([userId, isRead, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// CSV property import (phase 6J1)
+//
+// SUPER_ADMIN/ADMIN only, enforced in lib/admin/import-permissions.ts and
+// re-checked by every action — no schema-level enforcement. Two-step flow:
+// A) uploadAndValidateImportBatch parses the CSV and writes one
+//    PropertyImportRow per line with status VALIDE/ERREUR, never touching
+//    Property; B) runImportBatch creates/updates only the VALIDE rows, always
+//    as publicationStatus BROUILLON regardless of what the CSV says, and
+//    never writes media, documents, PropertyPrivate, mandates or CRM data.
+//
+// PropertyImportRow.sourceData/errors intentionally carry the raw CSV
+// content for that single row (public catalogue fields only — this V1 CSV
+// has no owner/private columns) so the admin can review it; AuditLog entries
+// for this module must stay limited to batchId + counters, never full row
+// content (see lib/admin/import-actions.ts).
+// ---------------------------------------------------------------------------
+
+enum ImportSourceType {
+  CAPITAL_PARC
+  AUTRE
+}
+
+enum ImportBatchStatus {
+  BROUILLON
+  VALIDE
+  IMPORTE
+  ECHEC
+}
+
+enum ImportRowStatus {
+  VALIDE
+  ERREUR
+  IGNORE
+  IMPORTE
+}
+
+model PropertyImportBatch {
+  id        String            @id @default(cuid())
+  reference String            @unique
+  fileName  String
+  source    ImportSourceType
+  status    ImportBatchStatus @default(BROUILLON)
+
+  rowCount     Int @default(0)
+  validCount   Int @default(0)
+  errorCount   Int @default(0)
+  createdCount Int @default(0)
+  updatedCount Int @default(0)
+
+  /**
+   * Quality-report counters added in phase 6J2 (extended CSV: coordinates,
+   * images). coordinatesValidCount counts rows with a valid latitude+longitude
+   * pair among the imported rows; the image counters are filled once step B
+   * (runImportBatch) actually downloads image_urls — see lib/admin/import-actions.ts.
+   */
+  coordinatesValidCount Int @default(0)
+  imagesDownloadedCount Int @default(0)
+  imagesRejectedCount   Int @default(0)
+
+  /** Column headers present in the uploaded file but outside the known CSV contract — tolerated, never read, just reported (phase 6J2). */
+  ignoredColumns Json?
+
+  createdById String
+  createdBy   User   @relation("PropertyImportBatchCreatedBy", fields: [createdById], references: [id])
+
+  importedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  rows PropertyImportRow[]
+
+  @@index([status])
+  @@index([createdById])
+}
+
+model PropertyImportRow {
+  id      String              @id @default(cuid())
+  batchId String
+  batch   PropertyImportBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  lineNumber Int
+
+  /** Raw CSV columns for this line, as submitted — public catalogue fields only in this V1 template. */
+  sourceData Json
+
+  status ImportRowStatus @default(ERREUR)
+
+  /** Non-sensitive, human-readable validation/import messages — never owner/private data (this template has none anyway). */
+  errors Json?
+
+  /** Per-image_urls outcome messages (rejections), filled during step B — phase 6J2. Never blocks the row/bien (see lib/admin/import-image-fetch.ts). */
+  imageErrors         Json?
+  imagesImportedCount Int   @default(0)
+
+  isUpdate Boolean @default(false)
+
+  propertyId String?
+  property   Property? @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([batchId, lineNumber])
+  @@index([batchId, status])
 }

@@ -76,20 +76,20 @@ export default function SearchEssentials({
         </span>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        <label className="flex flex-col gap-1.5 lg:col-span-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)]">
+        <label className="flex min-w-0 flex-col gap-1.5">
           <span className={fieldLabelClass}>Recherche</span>
           <input
             type="text"
             value={state.keyword}
             onChange={(event) => set("keyword", event.target.value)}
             placeholder="Mot-clé, titre, référence…"
-            className={inputClass}
+            className={`${inputClass} w-full`}
           />
         </label>
-        <label className="flex flex-col gap-1.5">
+        <label className="flex min-w-0 flex-col gap-1.5">
           <span className={fieldLabelClass}>Ville</span>
-          <select value={state.city} onChange={(event) => set("city", event.target.value)} className={inputClass}>
+          <select value={state.city} onChange={(event) => set("city", event.target.value)} className={`${inputClass} w-full`}>
             <option value="">Toutes les villes</option>
             {cities.map((city) => (
               <option key={city} value={city}>
@@ -98,12 +98,12 @@ export default function SearchEssentials({
             ))}
           </select>
         </label>
-        <label className="flex flex-col gap-1.5">
+        <label className="flex min-w-0 flex-col gap-1.5">
           <span className={fieldLabelClass}>Type de bien</span>
           <select
             value={state.type}
             onChange={(event) => onChange({ ...state, type: event.target.value as PropertyType | "", subType: "" })}
-            className={inputClass}
+            className={`${inputClass} w-full`}
           >
             <option value="">Tous les types</option>
             {propertyTypeValues.map((value) => (
@@ -113,9 +113,9 @@ export default function SearchEssentials({
             ))}
           </select>
         </label>
-        <label className="flex flex-col gap-1.5">
+        <label className="flex min-w-0 flex-col gap-1.5">
           <span className={fieldLabelClass}>Budget (MAD)</span>
-          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
             <input
               type="number"
               min={0}
@@ -123,9 +123,9 @@ export default function SearchEssentials({
               onChange={(event) => set("budgetMin", event.target.value)}
               placeholder="Min"
               aria-label="Budget minimum en MAD"
-              className={inputClass}
+              className={`${inputClass} min-w-0 flex-1 basis-24`}
             />
-            <span className="text-anthracite-300" aria-hidden="true">
+            <span className="shrink-0 text-anthracite-300" aria-hidden="true">
               –
             </span>
             <input
@@ -135,7 +135,7 @@ export default function SearchEssentials({
               onChange={(event) => set("budgetMax", event.target.value)}
               placeholder="Max"
               aria-label="Budget maximum en MAD"
-              className={inputClass}
+              className={`${inputClass} min-w-0 flex-1 basis-24`}
             />
           </div>
         </label>

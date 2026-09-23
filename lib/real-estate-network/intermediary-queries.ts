@@ -1,6 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/db";
 import { Prisma, type IntermediaryType as DbIntermediaryType } from "@/lib/generated/prisma/client";
+import type { NetworkEntityStats } from "@/lib/admin/network-stats-types";
 
 export const INTERMEDIARY_PAGE_SIZE = 20;
 
@@ -80,4 +81,55 @@ export async function getIntermediaryWithProperties(id: string) {
       },
     },
   });
+}
+
+/**
+ * 360° dashboard counters for the intermediary detail page (phase 6K §4).
+ * Unlike Owner/Promoter, commissions here are the intermediary's OWN share
+ * of each case (CommissionShare.computedAmount / its own payments), never
+ * the property's whole agency commission — an intermediary is normally paid
+ * a cut, not the full amount. See getOwnerStats for the canSeeFinance
+ * contract and the general property-count/visits/prospects pattern.
+ */
+export async function getIntermediaryStats(intermediaryId: string, canSeeFinance: boolean): Promise<NetworkEntityStats> {
+  const propertyScope: Prisma.PropertyWhereInput = { intermediaries: { some: { intermediaryId } } };
+
+  const [propertiesTotal, propertiesPublished, propertiesDraft, propertiesOffMarket, activeMandates, prospectsInterested, visitsScheduled, visitsCompleted] =
+    await Promise.all([
+      prisma.property.count({ where: propertyScope }),
+      prisma.property.count({ where: { ...propertyScope, publicationStatus: "PUBLIE" } }),
+      prisma.property.count({ where: { ...propertyScope, publicationStatus: "BROUILLON" } }),
+      prisma.property.count({ where: { ...propertyScope, visibility: "OFF_MARKET" } }),
+      prisma.mandate.count({ where: { status: "ACTIF", property: propertyScope } }),
+      prisma.prospect.count({ where: { propertyInterests: { some: { property: propertyScope } } } }),
+      prisma.visit.count({ where: { property: propertyScope, status: { in: ["PLANIFIEE", "CONFIRMEE"] } } }),
+      prisma.visit.count({ where: { property: propertyScope, status: "REALISEE" } }),
+    ]);
+
+  let commissionsPrevues: number | null = null;
+  let commissionsEncaissees: number | null = null;
+  if (canSeeFinance) {
+    const [prevues, encaissees] = await Promise.all([
+      prisma.commissionShare.aggregate({ where: { intermediaryId }, _sum: { computedAmount: true } }),
+      prisma.commissionPayment.aggregate({
+        where: { status: { in: ["RECU", "PARTIEL"] }, commissionShare: { intermediaryId } },
+        _sum: { amount: true },
+      }),
+    ]);
+    commissionsPrevues = Number(prevues._sum.computedAmount ?? 0);
+    commissionsEncaissees = Number(encaissees._sum.amount ?? 0);
+  }
+
+  return {
+    propertiesTotal,
+    propertiesPublished,
+    propertiesDraft,
+    propertiesOffMarket,
+    activeMandates,
+    prospectsInterested,
+    visitsScheduled,
+    visitsCompleted,
+    commissionsPrevues,
+    commissionsEncaissees,
+  };
 }

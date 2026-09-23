@@ -45,7 +45,13 @@ export default function ActionsQuickCreateForm({ prospects }: { prospects: Searc
           <input type="datetime-local" name="dueAt" className={inputClass} />
         </Field>
       </div>
-      <Button type="submit" disabled={pending || !prospectId} size="sm" className="w-fit">
+      <Button
+        type="submit"
+        disabled={pending || !prospectId}
+        title={!prospectId ? "Sélectionnez un prospect avant d'ajouter l'action." : undefined}
+        size="sm"
+        className="w-fit"
+      >
         {pending ? "Ajout…" : "Ajouter l'action"}
       </Button>
     </form>

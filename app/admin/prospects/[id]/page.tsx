@@ -107,7 +107,7 @@ export default async function ProspectDetailPage({ params, searchParams }: PageP
                 ))}
               </select>
             </label>
-            <Button type="submit" variant="secondary" size="sm">
+            <Button type="submit" variant="ghost" size="sm" className="border border-anthracite-200 hover:border-gold-500">
               Mettre à jour
             </Button>
           </form>
@@ -225,7 +225,7 @@ export default async function ProspectDetailPage({ params, searchParams }: PageP
         <div className="flex flex-wrap items-center justify-between gap-4">
           <h2 className="font-display text-lg font-semibold text-anthracite-950">Visites ({prospect.visits.length})</h2>
           {canEdit && (
-            <Button href={`/admin/visites/nouveau?prospectId=${prospect.id}`} variant="secondary" size="sm">
+            <Button href={`/admin/visites/nouveau?prospectId=${prospect.id}`} variant="ghost" size="sm" className="border border-anthracite-200 hover:border-gold-500">
               + Planifier une visite
             </Button>
           )}
